@@ -1,7 +1,7 @@
 /* Configuration : catégories, sous-catégories par défaut, libellés, palettes.
    APP_VERSION doit suivre CACHE_VERSION de sw.js (a-tester-vX.Y.Z). */
 
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 export const APP_ID = 'a-tester';
 export const SCHEMA_VERSION = 1;
 
@@ -119,14 +119,21 @@ export const EMPTY = {
   filtered: { title: 'Aucun résultat avec ces filtres', text: 'Essaie d’en retirer un ou deux.' }
 };
 
-/* Fonds de carte CARTO (données OpenStreetMap), nets sur écran Retina ({r} = @2x).
-   « Voyager » : couleurs douces ; « Positron » : épuré ; « Dark Matter » en thème sombre. */
+/* Fonds de carte OpenFreeMap : données OpenStreetMap, gratuits, sans clé ni
+   compte. Dessinés en vectoriel par MapLibre (nets sur écran Retina), libellés
+   en français. « liberty » : couleurs douces ; « positron » : épuré ; « dark »
+   en thème sombre. */
+const OFM = 'https://tiles.openfreemap.org';
 export const MAP_STYLES = {
-  voyager: { label: 'Couleurs douces', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' },
-  positron: { label: 'Épuré', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' },
-  dark: { label: 'Sombre', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' }
+  liberty: { label: 'Couleurs douces', url: `${OFM}/styles/liberty` },
+  positron: { label: 'Épuré', url: `${OFM}/styles/positron` },
+  dark: { label: 'Sombre', url: `${OFM}/styles/dark` }
 };
-export const MAP_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+export const MAP_ATTRIBUTION = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+/* Repli (pas de WebGL, OpenFreeMap injoignable) : tuiles OpenStreetMap classiques. */
+export const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+export const MAP_MAX_ZOOM = 20;
 
 /* Applications d'itinéraire proposées (on ne peut pas savoir lesquelles sont installées). */
 export const NAV_APPS = [

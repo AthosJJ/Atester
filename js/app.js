@@ -16,6 +16,7 @@ import { hooks as recoHooks } from './components/reco-actions.js';
 import { chooseDirections } from './components/directions.js';
 import { icon } from './components/icons.js';
 import { silentPosition } from './services/geo.js';
+import { initViewport } from './services/viewport.js';
 import { refreshBaseLayers } from './services/map.js';
 import { loadDemo } from './services/demo.js';
 import { openAdd, openEdit, addHooks } from './views/add.js';
@@ -69,16 +70,6 @@ function setTheme(pref) {
 }
 
 darkQuery.addEventListener?.('change', () => applyTheme());
-
-/* ════════ Clavier iOS : les feuilles restent au-dessus ════════ */
-function syncViewport() {
-  const vv = window.visualViewport;
-  if (!vv) return;
-  const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-  const st = document.documentElement.style;
-  st.setProperty('--kb', `${kb > 60 ? kb : 0}px`);
-  st.setProperty('--vvh', `${Math.round(vv.height)}px`);
-}
 
 /* ════════ Navigation ════════ */
 
@@ -324,11 +315,7 @@ function wire() {
 
 async function boot() {
   applyTheme();
-  if (window.visualViewport) {
-    visualViewport.addEventListener('resize', syncViewport);
-    visualViewport.addEventListener('scroll', syncViewport);
-    syncViewport();
-  }
+  initViewport();
   try {
     await db.open();
     await loadMeta();

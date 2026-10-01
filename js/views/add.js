@@ -24,7 +24,7 @@ import { searchShows, searchEpisodes } from '../services/itunes.js';
 import { isAbort, errorMessage } from '../services/http.js';
 import { getPosition, lastPosition, geoErrorMessage } from '../services/geo.js';
 import { loadLeaflet, attachBaseLayer, pinIcon } from '../services/map.js';
-import { CATEGORIES, CATEGORY_KEYS, TAB_OF, SEARCH_DEBOUNCE, DEFAULT_MAP_VIEW } from '../config.js';
+import { CATEGORIES, CATEGORY_KEYS, TAB_OF, SEARCH_DEBOUNCE, DEFAULT_MAP_VIEW, MAP_MAX_ZOOM } from '../config.js';
 import { esc, inkOn, debounce, localDateISO, safeUrl, colorFromName, lsGet, lsSet, haptic, reducedMotion } from '../utils.js';
 
 /* Branchés par app.js : navigation après l'enregistrement. */
@@ -324,7 +324,7 @@ async function initMiniMap() {
     const has = d.lat != null;
     const pos = lastPosition();
     const center = has ? [d.lat, d.lng] : pos ? [pos.lat, pos.lng] : [DEFAULT_MAP_VIEW.lat, DEFAULT_MAP_VIEW.lng];
-    const map = L.map(el, { zoomControl: false, attributionControl: true, tap: false });
+    const map = L.map(el, { maxZoom: MAP_MAX_ZOOM, zoomControl: false, attributionControl: true, tap: false });
     map.attributionControl.setPrefix(false);
     attachBaseLayer(L, map);
     map.setView(center, has ? 16 : pos ? 14 : DEFAULT_MAP_VIEW.zoom, { animate: false });

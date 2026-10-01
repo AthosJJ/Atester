@@ -1,9 +1,12 @@
-/* Carte : Leaflet + markercluster copiés dans vendor/, chargés à la première
-   ouverture de la carte. Fonds CARTO (données OpenStreetMap), en cache limité
-   dans le service worker ; le fond suit le thème et le style choisi. */
-import { loadScript, inkOn } from '../utils.js';
+/* Carte : Leaflet (+ markercluster) pour les épingles et les gestes, copiés dans
+   vendor/ et chargés à la première ouverture. Le fond vectoriel OpenFreeMap
+   (sans clé ni compte) est dessiné par MapLibre GL sous les épingles ; sans
+   WebGL, ou si OpenFreeMap ne répond pas, on se replie sur les tuiles
+   OpenStreetMap. Le fond suit le thème et le style choisi ; le service worker
+   garde les tuiles déjà vues pour le hors-ligne. */
+import { loadScript, loadCss, inkOn, reducedMotion } from '../utils.js';
 import { icon } from '../components/icons.js';
-import { MAP_STYLES, MAP_ATTRIBUTION } from '../config.js';
+import { MAP_STYLES, MAP_ATTRIBUTION, OSM_TILES, OSM_ATTRIBUTION, MAP_MAX_ZOOM } from '../config.js';
 import { getPref } from '../store/settings.js';
 import { on } from '../store/events.js';
 
@@ -20,39 +23,168 @@ export function loadLeaflet() {
   return loading;
 }
 
+/* ——— MapLibre GL et la liaison Leaflet (chargés à la demande) ——— */
+let glLoading = null;
+let glBroken = null; // WebGL absent ou refusé : inutile de réessayer
+
+function webglMissing() {
+  if (glBroken === null) {
+    try {
+      const gl = document.createElement('canvas').getContext('webgl2');
+      glBroken = !gl;
+      gl?.getExtension('WEBGL_lose_context')?.loseContext(); // libère tout de suite ce contexte d'essai
+    } catch {
+      glBroken = true;
+    }
+  }
+  return glBroken;
+}
+
+function loadGL() {
+  if (webglMissing()) return Promise.reject(new Error('webgl'));
+  if (!glLoading) {
+    glLoading = (async () => {
+      loadCss('./vendor/maplibre/maplibre-gl.css');
+      const ml = await import('../../vendor/maplibre/maplibre-gl.mjs');
+      window.maplibregl = ml; // la liaison Leaflet attend la variable globale
+      await loadScript('./vendor/maplibre-gl-leaflet/leaflet-maplibre-gl.js');
+      if (!window.L?.maplibreGL) throw new Error('liaison Leaflet absente');
+      return ml;
+    })().catch((err) => { glLoading = null; throw err; });
+  }
+  return glLoading;
+}
+
+/* ——— Styles OpenFreeMap ——— */
+const styles = new Map();
+
+async function getJSON(url) {
+  // fetch direct (et non fetchJSON) : hors ligne, le service worker répond depuis son cache.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch(url, { credentials: 'omit', signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* Libellés en français quand OpenStreetMap les connaît (« Londres »,
+   « Espagne »), sinon le nom local : les styles d'origine affichent l'anglais. */
+function frenchName(expr) {
+  if (typeof expr === 'string') {
+    return /^\{name(_en|:en|:latin)?\}$/.test(expr) ? ['coalesce', ['get', 'name:fr'], ['get', 'name']] : expr;
+  }
+  if (!Array.isArray(expr)) return expr;
+  if (expr[0] === 'get' && expr.length === 2) {
+    if (expr[1] === 'name_en' || expr[1] === 'name:en') return ['coalesce', ['get', 'name:fr'], ['get', 'name']];
+    if (expr[1] === 'name:latin') return ['coalesce', ['get', 'name:fr'], ['get', 'name:latin']];
+  }
+  return expr.map(frenchName);
+}
+
+/* Le style, sa source de tuiles intégrée (moins d'allers-retours, et rien
+   d'inconnu une fois chargé), les points d'intérêt retirés : nos épingles
+   restent seules à l'écran (on garde les stations de transport). */
+export async function loadStyle(key) {
+  if (styles.has(key)) return styles.get(key);
+  const style = await getJSON(MAP_STYLES[key].url);
+  for (const [id, src] of Object.entries(style.sources || {})) {
+    if (src.type === 'vector' && src.url && !src.tiles) {
+      const tj = await getJSON(src.url);
+      if (!Array.isArray(tj.tiles) || !tj.tiles.length) throw new Error('TileJSON sans tuiles');
+      style.sources[id] = {
+        type: 'vector', tiles: tj.tiles,
+        minzoom: tj.minzoom ?? 0, maxzoom: tj.maxzoom ?? 14,
+        ...(tj.bounds ? { bounds: tj.bounds } : {})
+      };
+    }
+  }
+  style.layers = (style.layers || [])
+    .filter((l) => l['source-layer'] !== 'poi' || /transit/.test(l.id))
+    .map((l) => (l.layout && l.layout['text-field'] ? { ...l, layout: { ...l.layout, 'text-field': frenchName(l.layout['text-field']) } } : l));
+  styles.set(key, style);
+  return style;
+}
+
 /* ——— Fond de carte ——— */
 const live = new Set();
 
 export function baseStyleKey() {
   if (document.documentElement.dataset.scheme === 'dark') return 'dark';
-  return getPref('mapStyle') === 'positron' ? 'positron' : 'voyager';
+  return getPref('mapStyle') === 'positron' ? 'positron' : 'liberty';
 }
 
-function makeLayer(L, key) {
-  return L.tileLayer(MAP_STYLES[key].url, { subdomains: 'abcd', maxZoom: 20, attribution: MAP_ATTRIBUTION, className: 'map-tiles' });
+function rasterLayer(L) {
+  return L.tileLayer(OSM_TILES, {
+    maxZoom: MAP_MAX_ZOOM, maxNativeZoom: 19, attribution: OSM_ATTRIBUTION, className: 'osm-tiles'
+  });
+}
+
+function vectorLayer(L, style) {
+  return L.maplibreGL({
+    style,
+    attributionControl: { customAttribution: MAP_ATTRIBUTION },
+    fadeDuration: reducedMotion() ? 0 : 200,
+    className: 'map-gl'
+  });
+}
+
+function swap(entry, layer, kind) {
+  const old = entry.layer;
+  try {
+    layer.addTo(entry.map);
+  } catch (err) {
+    // Création du contexte WebGL refusée : on retire la couche à moitié posée.
+    layer.getContainer?.()?.remove();
+    delete entry.map._layers?.[entry.L.stamp(layer)];
+    throw err;
+  }
+  entry.layer = layer;
+  entry.kind = kind;
+  if (old) entry.map.removeLayer(old);
+}
+
+/* Pose (ou remplace) le fond d'une carte : vectoriel si possible, sinon OSM. */
+async function setBase(entry) {
+  const key = baseStyleKey();
+  const ticket = ++entry.ticket;
+  entry.key = key;
+  try {
+    const [, style] = await Promise.all([loadGL(), loadStyle(key)]);
+    if (ticket !== entry.ticket || !live.has(entry)) return;
+    const layer = vectorLayer(entry.L, style);
+    swap(entry, layer, 'gl');
+    // Tuile absente hors ligne, requête annulée au zoom : rien à signaler.
+    layer.getMaplibreMap()?.on('error', () => {});
+  } catch (err) {
+    if (ticket !== entry.ticket || !live.has(entry)) return;
+    if (/webgl|WebGL/.test(String(err?.message))) glBroken = true;
+    if (entry.kind !== 'osm') swap(entry, rasterLayer(entry.L), 'osm');
+  }
 }
 
 /* Ajoute le fond à une carte ; il sera remplacé si le thème ou le style change. */
 export function attachBaseLayer(L, map) {
-  const key = baseStyleKey();
-  const entry = { L, map, key, layer: makeLayer(L, key).addTo(map) };
+  const entry = { L, map, key: null, kind: null, layer: null, ticket: 0 };
   live.add(entry);
   map.on('unload', () => live.delete(entry));
+  setBase(entry);
   return entry;
 }
 
-export function refreshBaseLayers() {
+/* Thème ou style changés, ou réseau revenu (on retente le fond vectoriel). */
+export function refreshBaseLayers({ retry = false } = {}) {
   const key = baseStyleKey();
   for (const e of live) {
-    if (e.key === key) continue;
-    const next = makeLayer(e.L, key).addTo(e.map);
-    e.map.removeLayer(e.layer);
-    e.layer = next;
-    e.key = key;
+    if (e.key !== key || (retry && e.kind === 'osm' && !glBroken)) setBase(e);
   }
 }
 
 on('meta', (k) => { if (k === 'prefs') refreshBaseLayers(); });
+window.addEventListener('online', () => refreshBaseLayers({ retry: true }));
 
 const STAR = '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>';
 

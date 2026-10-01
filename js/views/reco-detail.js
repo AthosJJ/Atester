@@ -16,7 +16,7 @@ import { directionsButton } from '../components/directions.js';
 import { fetchDetails, hasUsableKey } from '../services/tmdb.js';
 import { errorMessage } from '../services/http.js';
 import { openEdit } from './add.js';
-import { STATUS, CATEGORIES } from '../config.js';
+import { STATUS, CATEGORIES, MAP_MAX_ZOOM } from '../config.js';
 import { esc, relDate, shortDate, daysAgo, safeUrl, hostOf, copyText, IS_IOS } from '../utils.js';
 import { back } from '../router.js';
 
@@ -61,7 +61,7 @@ async function initMiniMap(r) {
     if (!el.isConnected || recoId !== r.id) return;
     destroyMiniMap();
     miniMap = L.map(el, {
-      zoomControl: false, dragging: false, touchZoom: false, scrollWheelZoom: false, doubleClickZoom: false,
+      maxZoom: MAP_MAX_ZOOM, zoomControl: false, dragging: false, touchZoom: false, scrollWheelZoom: false, doubleClickZoom: false,
       boxZoom: false, keyboard: false, tap: false, fadeAnimation: false
     });
     miniMap.attributionControl.setPrefix(false);

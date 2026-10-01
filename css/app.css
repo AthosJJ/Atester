@@ -27,6 +27,9 @@ body {
 
 html.lock, html.lock body { overflow: hidden; }
 
+/* Repère du bas de l'écran (js/services/viewport.js). */
+.vv-probe { position: fixed; left: 0; bottom: 0; width: 0; height: 0; visibility: hidden; pointer-events: none; }
+
 button, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }
 button { background: none; border: 0; cursor: pointer; touch-action: manipulation; }
 a { color: var(--accent-ink); text-decoration: none; }
@@ -656,7 +659,7 @@ svg.i { flex: none; display: block; }
 .tabbar {
   position: fixed;
   left: 12px; right: 12px;
-  bottom: var(--tabbar-bottom);
+  bottom: calc(var(--tabbar-bottom) - var(--vv-shift, 0px));
   max-width: 520px;
   margin: 0 auto;
   height: var(--tabbar-h);
@@ -722,7 +725,7 @@ svg.i { flex: none; display: block; }
 @keyframes ripple { from { transform: scale(1); opacity: .8; } to { transform: scale(1.7); opacity: 0; } }
 
 /* ════════ Feuilles glissantes ════════ */
-.layer { position: fixed; inset: 0; z-index: var(--z, 100); }
+.layer { position: fixed; inset: 0; bottom: calc(0px - var(--vv-shift, 0px)); z-index: var(--z, 100); }
 .backdrop {
   position: absolute; inset: 0;
   background: var(--scrim);
@@ -1283,7 +1286,7 @@ input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 
 .action-bar {
   position: fixed;
-  left: 0; right: 0; bottom: 0;
+  left: 0; right: 0; bottom: calc(0px - var(--vv-shift, 0px));
   max-width: var(--maxw);
   margin: 0 auto;
   z-index: 65;
@@ -1489,6 +1492,7 @@ button.srow:active { background: var(--bg-2); }
 /* ════════ Carte ════════ */
 .view.map-mode {
   position: fixed; inset: 0;
+  bottom: calc(0px - var(--vv-shift, 0px));
   max-width: none;
   display: flex; flex-direction: column;
   padding-bottom: 0;
@@ -1498,6 +1502,10 @@ button.srow:active { background: var(--bg-2); }
 .view.map-mode .vhead { flex: none; max-width: var(--maxw); width: 100%; margin: 0 auto; }
 html.map-lock, html.map-lock body { overflow: hidden; overscroll-behavior: none; }
 .map.no-anim .pin-dot, .map.no-anim .cluster-ring { animation: none; }
+/* Repli OpenStreetMap (sans WebGL ou OpenFreeMap injoignable) : tuiles adoucies,
+   inversées en thème sombre. */
+.osm-tiles { filter: saturate(.7) contrast(.95) brightness(1.02); }
+:root[data-scheme="dark"] .osm-tiles { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.88) saturate(.6); }
 .map-wrap {
   position: relative;
   flex: 1; min-height: 0;
@@ -1521,6 +1529,8 @@ html.map-lock, html.map-lock body { overflow: hidden; overscroll-behavior: none;
 }
 .leaflet-control-attribution a { color: var(--muted) !important; }
 .map-wrap .leaflet-bottom { bottom: calc(var(--tabbar-bottom) + var(--tabbar-h) + 4px); }
+/* Les crédits passent sur deux lignes plutôt que sous le bouton + central. */
+.map-wrap .leaflet-control-attribution { max-width: calc(50vw - 44px); text-align: right; }
 .hero-map .leaflet-bottom { bottom: 0; }
 
 .pin { background: none; border: 0; }
@@ -1709,7 +1719,7 @@ html.on-push { --toast-bottom: calc(var(--sab) + 92px); }
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--toast-bottom, calc(var(--tabbar-space) + 4px)) + var(--toast-lift, 0px));
+  bottom: calc(var(--toast-bottom, calc(var(--tabbar-space) + 4px)) + var(--toast-lift, 0px) - var(--vv-shift, 0px));
   z-index: 400;
   display: flex; align-items: center; gap: 10px;
   width: max-content;

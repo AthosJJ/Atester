@@ -50,7 +50,7 @@ function render() {
   const status = keyStatus();
   const demo = hasDemo();
   const total = allRecos().length;
-  const mapStyle = getPref('mapStyle', 'voyager');
+  const mapStyle = getPref('mapStyle', 'liberty');
   const navApp = getPref('navApp', 'ask');
   const navChoices = [{ key: 'ask', short: 'Demander' }, ...NAV_APPS.map((a) => ({ key: a.key, short: a.key === 'google' ? 'Google' : a.label }))];
 
@@ -114,7 +114,7 @@ function render() {
       <p class="hint" style="margin:0 8px 8px">Style de la carte (elle passe en sombre avec le thème sombre)</p>
       <div class="seg" role="group" aria-label="Style de la carte" style="--n:2;--i:${mapStyle === 'positron' ? 1 : 0}">
         <span class="seg-thumb" aria-hidden="true"></span>
-        <button type="button" data-mapstyle="voyager" aria-pressed="${mapStyle !== 'positron'}">${icon('palette', { size: 16 })}${esc(MAP_STYLES.voyager.label)}</button>
+        <button type="button" data-mapstyle="liberty" aria-pressed="${mapStyle !== 'positron'}">${icon('palette', { size: 16 })}${esc(MAP_STYLES.liberty.label)}</button>
         <button type="button" data-mapstyle="positron" aria-pressed="${mapStyle === 'positron'}">${icon('map', { size: 16 })}${esc(MAP_STYLES.positron.label)}</button>
       </div>
       <p class="hint" style="margin:4px 8px 8px">Itinéraire avec</p>
@@ -147,7 +147,7 @@ function render() {
       <div class="scard about">
         <p><b style="color:var(--ink)">À tester</b> · version ${APP_VERSION}. Tes recommandations, avec la personne qui te les a faites. 100 % local : pas de compte, pas de serveur.</p>
         <p>Sur iPhone, iOS peut dans certains cas effacer les données d’un site web ou d’une app web peu utilisée. <b>L’export JSON est ta vraie sauvegarde</b> : pense à en faire un de temps en temps.</p>
-        <p>Carte : données <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, fonds de carte <a href="https://carto.com/attributions" target="_blank" rel="noopener">© CARTO</a>, affichée avec Leaflet. Recherche de lieux : Photon (komoot), données OpenStreetMap.</p>
+        <p>Carte : données <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, fonds de carte <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> (<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a>), affichée avec Leaflet et MapLibre. Recherche de lieux : Photon (komoot), données OpenStreetMap.</p>
         <p>Films et séries : <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. Plateformes de streaming : JustWatch.</p>
         <p>Podcasts : API iTunes Search d’Apple. Icônes : Lucide (ISC). Base locale : Dexie.</p>
       </div>

@@ -74,13 +74,29 @@ Le descriptif (`SPEC.md`) est suivi dans son intégralité. En l'analysant, plus
 | --- | --- | --- |
 | Accent unique terracotta `#E07A5F` | Palette « Encre » : boutons pleins encre (texte crème), touches de corail `#E8846A` (onglet actif, icônes, liens) ; en sombre, boutons crème. Icône et écrans de lancement recolorés | Le terracotta en aplat paraissait lourd ; l'encre garde le caractère chaleureux avec plus de légèreté |
 | `apple-mobile-web-app-status-bar-style` : `black-translucent` | `default`, avec `theme-color` crème en clair et brun nuit en sombre : plus de bande colorée, la couleur du fond continue jusqu'en haut | Demande explicite : pas de bande en haut. Sur un iPhone où l'app est déjà installée, la retirer puis la réinstaller peut être nécessaire pour qu'iOS prenne le nouveau réglage |
-| Tuiles `tile.openstreetmap.org`, filtre CSS en mode sombre | Fonds CARTO (données OpenStreetMap), nets sur écran Retina : « Couleurs douces » (Voyager, par défaut) ou « Épuré » (Positron) au choix dans Réglages › Carte et itinéraire ; « Dark Matter » en thème sombre, sans filtre | Carte plus épurée et plus lisible sous les épingles. Attribution « © OpenStreetMap © CARTO » sur la carte et dans À propos ; service gratuit pour un usage personnel non commercial |
+| Tuiles `tile.openstreetmap.org`, filtre CSS en mode sombre | Fonds CARTO, « Couleurs douces » ou « Épuré » au choix, sombre en thème sombre. **Remplacés en 1.2** : CARTO exige désormais une clé (voir section 9) | Carte plus épurée et plus lisible sous les épingles |
 | « Itinéraire » ouvre Plans | Feuille « Itinéraire avec… » : Plans, Google Maps ou Waze ; Réglages › Carte et itinéraire permet de choisir une app par défaut (le bouton ouvre alors directement cette app) | On ne peut pas savoir quelles apps sont installées ; chaque choix est un lien universel (l'app s'ouvre si elle est là, son site sinon) |
 | Avatar : initiales sur la couleur de la personne | Photo facultative : touche l'avatar (pastille appareil photo) ou le bouton rond « Photo » de sa fiche, choisis dans la photothèque ou prends une photo, puis recadre (glisser, pincer ou curseur de zoom) dans un cercle. La photo apparaît partout où la personne apparaît ; « Retirer » s'annule. La couleur reste utilisée pour ses étiquettes | Reconnaître les gens d'un coup d'œil |
 | Format d'export : `id`, `name`, `color`, `isMe`, `createdAt` | Champ facultatif `photo` (JPEG carré de 320 px en data URL, environ 30 Ko) ; `schemaVersion` reste à 1. À l'import, une photo invalide est ignorée ; en fusion, une personne sans photo reprend celle de la sauvegarde | La sauvegarde reste complète ; une ancienne version de l'app ignore simplement ce champ |
 
 Autres points de cette version :
 
-- Le cache des tuiles change de nom (`a-tester-tiles-carto`) : les anciennes tuiles OpenStreetMap sont purgées à la mise à jour, les tuiles CARTO déjà vues restent disponibles hors ligne.
+- Le cache des tuiles change de nom (`a-tester-tiles-carto`) : les anciennes tuiles OpenStreetMap sont purgées à la mise à jour.
 - L'aperçu de la carte, une fois fermé, ne dépasse plus derrière la barre d'onglets.
 - Nouveaux modules : `js/services/photo.js` (préparation, contrôle et affichage des photos), `js/components/photo-crop.js` (recadrage), `js/components/directions.js` (choix de l'app d'itinéraire).
+
+## 9. Version 1.2 : carte sans clé, barre d'onglets stable
+
+| Dans le descriptif | Dans l'app | Pourquoi |
+| --- | --- | --- |
+| Tuiles `tile.openstreetmap.org`, filtre CSS en mode sombre (CARTO en 1.1) | Fonds vectoriels **OpenFreeMap** (données OpenStreetMap, gratuits, sans clé ni compte) dessinés par **MapLibre GL** sous les épingles Leaflet : « Couleurs douces » (style Liberty, par défaut), « Épuré » (Positron) dans Réglages › Carte et itinéraire, « Dark Matter » en thème sombre. Libellés en français quand OpenStreetMap les connaît (« Londres », « Allemagne »), commerces et restaurants du fond retirés pour laisser la place à nos épingles (stations de transport gardées) | CARTO affiche maintenant « API KEY REQUIRED » sans clé, et il fallait éviter de créer un compte. Le vectoriel reste net à tous les zooms sur écran Retina |
+| — | **Repli automatique** sur les tuiles OpenStreetMap (adoucies, inversées en thème sombre) si WebGL manque ou si OpenFreeMap ne répond pas ; retour au vectoriel quand le réseau revient | La carte ne reste jamais vide à cause du fond |
+| Cache d'environ 500 tuiles déjà vues | Style et TileJSON en « réseau d'abord » (copie de secours), polices, icônes et tuiles en « cache d'abord » (500 tuiles) : la carte déjà vue s'affiche hors ligne à partir du deuxième lancement de la nouvelle version. Le cache CARTO (tuiles à filigrane) est purgé | Même promesse hors ligne qu'avant |
+| — | Crédits « OpenFreeMap © OpenMapTiles © OpenStreetMap » sur deux lignes, à droite du bouton + | Ils passaient sous le bouton central |
+| Barre d'onglets fixée en bas | Dans une web app installée, iOS laisse parfois le viewport de mise en page plus court ou décalé après le clavier ou un retour dans l'app (bug WebKit connu, encore présent sous iOS 26) : la barre « sautait » vers le haut. L'app mesure l'écart entre le bas réellement visible et le bas de mise en page et redescend d'autant la barre d'onglets, la barre d'action des fiches, les panneaux, les messages et la carte ; la hauteur du clavier ne compte que pendant une saisie ; un défilement nul relance le recalage d'iOS à la fermeture du clavier, d'un panneau ou au retour dans l'app | La barre reste collée en bas, en clair comme en sombre |
+
+Écarts techniques de cette version :
+
+- Ajout de `vendor/maplibre/` (MapLibre GL JS 6.11, BSD-3, environ 1,2 Mo, téléchargé une fois à la mise à jour puis gardé hors ligne) et `vendor/maplibre-gl-leaflet/` (liaison Leaflet, ISC). Leaflet garde les épingles, les groupes, les gestes et l'aperçu.
+- Nouveau module `js/services/viewport.js` (clavier et viewport iOS), qui remplace la mesure du clavier faite dans `js/app.js`.
+- Caches du service worker : `a-tester-map` (styles, TileJSON, polices, icônes) et `a-tester-tiles-ofm` (tuiles OpenFreeMap et OSM du repli).

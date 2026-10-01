@@ -19,7 +19,7 @@ import { subcat } from '../store/settings.js';
 import { loadLeaflet, attachBaseLayer, pinIcon, clusterIcon, userIcon } from '../services/map.js';
 import { directionsButton } from '../components/directions.js';
 import { lastPosition, getPosition, geoErrorMessage } from '../services/geo.js';
-import { STATUS, CLUSTER_THRESHOLD, DEFAULT_MAP_VIEW, EMPTY } from '../config.js';
+import { STATUS, CLUSTER_THRESHOLD, DEFAULT_MAP_VIEW, EMPTY, MAP_MAX_ZOOM } from '../config.js';
 import { esc, plural, fmtDistance, distanceKm, lsGet, lsSet, reducedMotion } from '../utils.js';
 
 const TAB = 'lieux';
@@ -64,7 +64,7 @@ function initMap() {
   initPromise = (async () => {
     L = await loadLeaflet();
     const saved = lsGet('map:view') || DEFAULT_MAP_VIEW;
-    map = L.map(mapEl, { zoomControl: false, zoomSnap: 0.5, worldCopyJump: true, fadeAnimation: !reducedMotion(), zoomAnimation: !reducedMotion(), markerZoomAnimation: !reducedMotion() });
+    map = L.map(mapEl, { zoomControl: false, minZoom: 2, maxZoom: MAP_MAX_ZOOM, zoomSnap: 0.5, worldCopyJump: true, fadeAnimation: !reducedMotion(), zoomAnimation: !reducedMotion(), markerZoomAnimation: !reducedMotion() });
     map.attributionControl.setPrefix(false);
     attachBaseLayer(L, map);
     map.setView([saved.lat, saved.lng], saved.zoom, { animate: false });

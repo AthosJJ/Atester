@@ -1,10 +1,13 @@
 /* À tester — service worker.
-   Coquille pré-cachée et versionnée ; tuiles de carte et affiches en cache
-   limité ; appels API (Photon, TMDB, iTunes) toujours sur le réseau.
+   Coquille pré-cachée et versionnée ; carte (OpenFreeMap, repli OpenStreetMap)
+   et affiches en cache limité ; appels API (Photon, TMDB, iTunes) toujours sur
+   le réseau.
    Publier une version = incrémenter CACHE_VERSION (et APP_VERSION dans js/config.js).
    Vérifier la liste : node tools/check-sw.mjs */
-const CACHE_VERSION = 'a-tester-v1.1.0';
-const TILE_CACHE = 'a-tester-tiles-carto'; // 1.1 : fonds CARTO (l'ancien cache OSM est purgé)
+const CACHE_VERSION = 'a-tester-v1.2.0';
+const TILE_CACHE = 'a-tester-tiles-ofm'; // 1.2 : tuiles OpenFreeMap et OSM (l'ancien cache CARTO est purgé)
+const MAP_CACHE = 'a-tester-map';        // styles, polices et icônes de la carte
+const MAP_HOST = 'tiles.openfreemap.org';
 const IMG_CACHE = 'a-tester-images';
 const MAX_TILES = 500;
 const MAX_IMAGES = 300;
@@ -34,6 +37,7 @@ const SHELL = [
   './js/services/photo.js',
   './js/services/photon.js',
   './js/services/tmdb.js',
+  './js/services/viewport.js',
   './js/views/add.js',
   './js/views/content-tab.js',
   './js/views/empty.js',
@@ -68,6 +72,11 @@ const SHELL = [
   './vendor/leaflet/images/marker-shadow.png',
   './vendor/leaflet.markercluster/leaflet.markercluster.js',
   './vendor/leaflet.markercluster/MarkerCluster.css',
+  './vendor/maplibre/maplibre-gl.mjs',
+  './vendor/maplibre/maplibre-gl-shared.mjs',
+  './vendor/maplibre/maplibre-gl-worker.mjs',
+  './vendor/maplibre/maplibre-gl.css',
+  './vendor/maplibre-gl-leaflet/leaflet-maplibre-gl.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
@@ -91,13 +100,13 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys
-        .filter((k) => k.startsWith('a-tester-') && ![CACHE_VERSION, TILE_CACHE, IMG_CACHE].includes(k))
+        .filter((k) => k.startsWith('a-tester-') && ![CACHE_VERSION, TILE_CACHE, MAP_CACHE, IMG_CACHE].includes(k))
         .map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
-const isTile = (host) => host.endsWith('.basemaps.cartocdn.com');
+const isOsmTile = (host) => host === 'tile.openstreetmap.org';
 const isImage = (host) => host === 'image.tmdb.org' || host.endsWith('.mzstatic.com');
 
 self.addEventListener('fetch', (event) => {
@@ -106,7 +115,12 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin === self.location.origin) {
     event.respondWith(fromShell(req));
-  } else if (isTile(url.hostname)) {
+  } else if (url.hostname === MAP_HOST) {
+    // Style et TileJSON changent (nouvelles tuiles chaque semaine) : réseau d'abord.
+    if (url.pathname.startsWith('/styles/') || url.pathname === '/planet') event.respondWith(networkFirst(req, MAP_CACHE));
+    else if (/^\/(fonts|sprites)\//.test(url.pathname)) event.respondWith(cacheFirst(req, MAP_CACHE, 400));
+    else event.respondWith(cacheFirst(req, TILE_CACHE, MAX_TILES));
+  } else if (isOsmTile(url.hostname)) {
     event.respondWith(cacheFirst(req, TILE_CACHE, MAX_TILES));
   } else if (isImage(url.hostname)) {
     event.respondWith(cacheFirst(req, IMG_CACHE, MAX_IMAGES));
@@ -131,6 +145,25 @@ async function fromShell(req) {
     return res;
   } catch {
     return Response.error();
+  }
+}
+
+/* Réseau d'abord (délai court), copie de secours pour le hors-ligne. */
+async function networkFirst(req, name) {
+  const cache = await caches.open(name);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  try {
+    const res = await fetch(req.url, { mode: 'cors', credentials: 'omit', signal: ctrl.signal });
+    if (res.ok) {
+      await cache.put(req.url, res.clone());
+      return res;
+    }
+    return (await cache.match(req.url)) || res;
+  } catch {
+    return (await cache.match(req.url)) || Response.error();
+  } finally {
+    clearTimeout(timer);
   }
 }
 
