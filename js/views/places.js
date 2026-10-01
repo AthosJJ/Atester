@@ -16,7 +16,8 @@ import { getFilters, setFilters, results, resetFilters } from '../store/filters.
 import { recosOf, getReco } from '../store/recommendations.js';
 import { personsOf } from '../store/persons.js';
 import { subcat } from '../store/settings.js';
-import { loadLeaflet, osmLayer, pinIcon, clusterIcon, userIcon, directionsUrl } from '../services/map.js';
+import { loadLeaflet, attachBaseLayer, pinIcon, clusterIcon, userIcon } from '../services/map.js';
+import { directionsButton } from '../components/directions.js';
 import { lastPosition, getPosition, geoErrorMessage } from '../services/geo.js';
 import { STATUS, CLUSTER_THRESHOLD, DEFAULT_MAP_VIEW, EMPTY } from '../config.js';
 import { esc, plural, fmtDistance, distanceKm, lsGet, lsSet, reducedMotion } from '../utils.js';
@@ -65,7 +66,7 @@ function initMap() {
     const saved = lsGet('map:view') || DEFAULT_MAP_VIEW;
     map = L.map(mapEl, { zoomControl: false, zoomSnap: 0.5, worldCopyJump: true, fadeAnimation: !reducedMotion(), zoomAnimation: !reducedMotion(), markerZoomAnimation: !reducedMotion() });
     map.attributionControl.setPrefix(false);
-    osmLayer(L).addTo(map);
+    attachBaseLayer(L, map);
     map.setView([saved.lat, saved.lng], saved.zoom, { animate: false });
     mapEl.addEventListener('touchstart', () => { lastUserMove = Date.now(); }, { passive: true });
     mapEl.addEventListener('wheel', () => { lastUserMove = Date.now(); }, { passive: true });
@@ -198,7 +199,7 @@ function openPreview(id, { silent = false } = {}) {
         </div>
       </div>
       <div class="preview-actions">
-        <a class="btn btn-soft" href="${esc(directionsUrl(r))}" target="_blank" rel="noopener">${icon('navigation', { size: 18 })}Itinéraire</a>
+        ${directionsButton(r, { cls: 'btn btn-soft' })}
         <button type="button" class="btn btn-primary" data-open="${r.id}">Voir la fiche</button>
         ${r.status === 'todo' ? `<button type="button" class="rbtn accent" data-act="preview-done" data-id="${r.id}" aria-label="${esc(S.mark)}">${icon('check', { stroke: 2.6 })}</button>` : ''}
       </div>
@@ -359,7 +360,8 @@ export default {
     closePreview();
   },
   refresh(evt) {
-    const data = evt && evt.source === 'data';
+    // Données ou réglages modifiés : on garde le cadrage et on ne rejoue pas la chute des épingles.
+    const data = evt && (evt.source === 'data' || evt.source === 'meta');
     const bulk = data && ['demo', 'demo-remove', 'import', 'wipe'].includes(evt.type);
     if (data && !bulk) animatePins = false;
     if (bulk) lastSig = '';

@@ -43,7 +43,7 @@ Le descriptif (`SPEC.md`) est suivi dans son intégralité. En l'analysant, plus
 ## 4. Fiches
 
 - **Action principale dans la zone du pouce** (« Marquer comme testé ») et favori en bouton rond ; modifier et le menu « … » en haut.
-- **Fiche personne façon fiche contact iOS** : boutons ronds « Ses lieux », « Ajouter », « Couleur », « Plus ». La fusion propose d'abord les prénoms proches ; une suppression impossible propose directement la fusion.
+- **Fiche personne façon fiche contact iOS** : boutons ronds « Ses lieux », « Ajouter », « Photo », « Plus ». La fusion propose d'abord les prénoms proches ; une suppression impossible propose directement la fusion.
 - **Partager** une recommandation (feuille de partage iOS) depuis le menu « … ».
 
 ## 5. Données
@@ -57,7 +57,7 @@ Le descriptif (`SPEC.md`) est suivi dans son intégralité. En l'analysant, plus
 
 - **Boutons ronds et animations** : boutons à ressort, bulle qui suit l'onglet actif, bouton + en relief, épingles qui tombent sur la carte, cartes qui apparaissent en cascade, coche animée et confettis quand on marque comme testé, retour haptique sur iOS 18+. Tout est coupé si « Réduire les animations » est activé.
 - **Contraste automatique** : icône blanche ou sombre selon la couleur de la sous-catégorie (le miel de « Boulangerie » ne permet pas le blanc).
-- **Barre d'état lisible** : avec `black-translucent`, iOS écrit l'heure en blanc ; une bande terracotta (sombre en thème sombre) la garde lisible sur le fond clair.
+- **Barre d'état sans bande** : le fond de l'app monte jusqu'en haut de l'écran ; iOS écrit l'heure en noir en thème clair et en blanc en thème sombre (voir la version 1.1 ci-dessous).
 - **Cibles d'au moins 44 × 44 px** partout (zones de toucher étendues autour des petits boutons), textes de saisie à 16 px.
 - **Écrans de lancement iOS** et icône dédiée (bulle « on m'a conseillé » + coche « testé »).
 
@@ -67,3 +67,20 @@ Le descriptif (`SPEC.md`) est suivi dans son intégralité. En l'analysant, plus
 - Seul le cache de la coquille est purgé à chaque version : les tuiles et les affiches déjà vues restent disponibles hors ligne après une mise à jour.
 - `#/ajout` ouvre la feuille d'ajout par-dessus l'onglet de la catégorie (c'est un panneau, pas une page).
 - Grand titre à 30 px en police arrondie (SF Pro Rounded sur iPhone) au lieu de 28 px.
+
+## 8. Version 1.1 : ajustements demandés après essai
+
+| Dans le descriptif | Dans l'app | Pourquoi |
+| --- | --- | --- |
+| Accent unique terracotta `#E07A5F` | Palette « Encre » : boutons pleins encre (texte crème), touches de corail `#E8846A` (onglet actif, icônes, liens) ; en sombre, boutons crème. Icône et écrans de lancement recolorés | Le terracotta en aplat paraissait lourd ; l'encre garde le caractère chaleureux avec plus de légèreté |
+| `apple-mobile-web-app-status-bar-style` : `black-translucent` | `default`, avec `theme-color` crème en clair et brun nuit en sombre : plus de bande colorée, la couleur du fond continue jusqu'en haut | Demande explicite : pas de bande en haut. Sur un iPhone où l'app est déjà installée, la retirer puis la réinstaller peut être nécessaire pour qu'iOS prenne le nouveau réglage |
+| Tuiles `tile.openstreetmap.org`, filtre CSS en mode sombre | Fonds CARTO (données OpenStreetMap), nets sur écran Retina : « Couleurs douces » (Voyager, par défaut) ou « Épuré » (Positron) au choix dans Réglages › Carte et itinéraire ; « Dark Matter » en thème sombre, sans filtre | Carte plus épurée et plus lisible sous les épingles. Attribution « © OpenStreetMap © CARTO » sur la carte et dans À propos ; service gratuit pour un usage personnel non commercial |
+| « Itinéraire » ouvre Plans | Feuille « Itinéraire avec… » : Plans, Google Maps ou Waze ; Réglages › Carte et itinéraire permet de choisir une app par défaut (le bouton ouvre alors directement cette app) | On ne peut pas savoir quelles apps sont installées ; chaque choix est un lien universel (l'app s'ouvre si elle est là, son site sinon) |
+| Avatar : initiales sur la couleur de la personne | Photo facultative : touche l'avatar (pastille appareil photo) ou le bouton rond « Photo » de sa fiche, choisis dans la photothèque ou prends une photo, puis recadre (glisser, pincer ou curseur de zoom) dans un cercle. La photo apparaît partout où la personne apparaît ; « Retirer » s'annule. La couleur reste utilisée pour ses étiquettes | Reconnaître les gens d'un coup d'œil |
+| Format d'export : `id`, `name`, `color`, `isMe`, `createdAt` | Champ facultatif `photo` (JPEG carré de 320 px en data URL, environ 30 Ko) ; `schemaVersion` reste à 1. À l'import, une photo invalide est ignorée ; en fusion, une personne sans photo reprend celle de la sauvegarde | La sauvegarde reste complète ; une ancienne version de l'app ignore simplement ce champ |
+
+Autres points de cette version :
+
+- Le cache des tuiles change de nom (`a-tester-tiles-carto`) : les anciennes tuiles OpenStreetMap sont purgées à la mise à jour, les tuiles CARTO déjà vues restent disponibles hors ligne.
+- L'aperçu de la carte, une fois fermé, ne dépasse plus derrière la barre d'onglets.
+- Nouveaux modules : `js/services/photo.js` (préparation, contrôle et affichage des photos), `js/components/photo-crop.js` (recadrage), `js/components/directions.js` (choix de l'app d'itinéraire).

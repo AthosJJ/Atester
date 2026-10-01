@@ -95,6 +95,17 @@ export async function setPersonColor(id, color) {
   emit('change', { type: 'person', ids: [id] });
 }
 
+/* Photo : data URL JPEG carrée (services/photo.js), ou null pour la retirer. */
+export async function setPersonPhoto(id, photo) {
+  if (!byId.has(id)) return;
+  const p = { ...byId.get(id) };
+  if (photo) p.photo = photo;
+  else delete p.photo;
+  await db.persons.put(p);
+  keep(p);
+  emit('change', { type: 'person', ids: [id] });
+}
+
 /* Remplace la source par la cible dans toutes les recommandations, puis supprime la source. */
 export async function mergePersons(sourceId, targetId) {
   const src = byId.get(sourceId);

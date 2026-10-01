@@ -1,5 +1,8 @@
-/* Avatars : cercle aux initiales sur la couleur de la personne (« Moi » a son icône). */
+/* Avatars : la photo de la personne si elle en a une, sinon un cercle aux
+   initiales sur sa couleur (« Moi » a son icône). Les initiales restent sous
+   la photo : elles réapparaissent si l'image ne peut pas s'afficher. */
 import { icon } from './icons.js';
+import { photoUrl } from '../services/photo.js';
 import { esc, initials, inkOn, listFr } from '../utils.js';
 
 export const displayName = (p) => (p ? p.name : 'Inconnu');
@@ -7,7 +10,8 @@ export const displayName = (p) => (p ? p.name : 'Inconnu');
 export function avatar(p, size = 32) {
   if (!p) return `<span class="avatar" style="--s:${size}px" aria-hidden="true">?</span>`;
   const inner = p.isMe ? icon('user', { size: Math.round(size * 0.55), stroke: 2.4 }) : esc(initials(p.name));
-  return `<span class="avatar" style="--s:${size}px;--c:${p.color};--ci:${inkOn(p.color, { text: true })}" aria-hidden="true">${inner}</span>`;
+  const src = photoUrl(p.id, p.photo);
+  return `<span class="avatar${src ? ' has-photo' : ''}" style="--s:${size}px;--c:${p.color};--ci:${inkOn(p.color, { text: true })}" aria-hidden="true">${inner}${src ? `<img src="${src}" alt="" draggable="false">` : ''}</span>`;
 }
 
 export function avatarStack(persons, { size = 24, max = 3 } = {}) {

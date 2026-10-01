@@ -1,21 +1,23 @@
 /* Fiche d'une personne : statistiques, boutons ronds (ses lieux sur la carte,
-   ajouter une recommandation de…, couleur, plus), filtre de statut commun et
-   trois sections repliables. Menu : renommer, fusionner, supprimer. */
+   ajouter une recommandation de…, photo et couleur, plus), filtre de statut
+   commun et trois sections repliables. Menu : renommer, fusionner, supprimer. */
 import { icon } from '../components/icons.js';
 import { avatar, personChip } from '../components/person-avatar.js';
 import { recoRow } from '../components/reco-card.js';
 import { bindSwipe, bindLongPress } from '../components/swipe.js';
 import { swipeStatus, toggleFav, contextMenu } from '../components/reco-actions.js';
 import { openSheet, actionSheet, confirmSheet, promptSheet } from '../components/bottom-sheet.js';
+import { cropPhoto } from '../components/photo-crop.js';
 import { toast } from '../components/toast.js';
 import {
-  getPerson, allPersons, personStats, renamePerson, setPersonColor, mergePersons,
+  getPerson, allPersons, personStats, renamePerson, setPersonColor, setPersonPhoto, mergePersons,
   soleRecos, deletePerson, restorePerson, searchPersons
 } from '../store/persons.js';
+import { on } from '../store/events.js';
 import { recosByPerson } from '../store/recommendations.js';
 import { sortRecos } from '../store/filters.js';
 import { CATEGORIES, CATEGORY_KEYS, AVATAR_COLORS, SUBCAT_COLORS } from '../config.js';
-import { esc, inkOn, relDate, fmtNumber, lsGet, lsSet, plural } from '../utils.js';
+import { esc, inkOn, relDate, fmtNumber, lsGet, lsSet, plural, haptic } from '../utils.js';
 import { back, replaceRoute } from '../router.js';
 import { lastPosition } from '../services/geo.js';
 
@@ -64,7 +66,9 @@ function render() {
 
   wrap.innerHTML = `
     <header class="phero">
-      <span style="--c:${p.color}">${avatar(p, 104)}</span>
+      <button type="button" class="phero-pic" data-act="avatar" aria-label="${p.photo ? 'Changer la photo' : 'Ajouter une photo'} de ${esc(p.name)}">
+        ${avatar(p, 104)}<span class="phero-cam" aria-hidden="true">${icon('camera', { size: 16, stroke: 2.4 })}</span>
+      </button>
       <h1>${esc(p.name)}</h1>
       <p class="since">${s.last ? `Dernière recommandation ${esc(relDate(s.last))}` : 'Aucune recommandation pour l’instant'}</p>
     </header>
@@ -77,7 +81,7 @@ function render() {
       <a class="ract" href="#/lieux?vue=carte&p=${encodeURIComponent(p.id)}" ${s.byCat.place ? '' : 'aria-disabled="true" style="opacity:.45;pointer-events:none"'}>
         <span class="rbtn">${icon('map-pin', { size: 22 })}</span>Ses lieux</a>
       <button type="button" class="ract primary" data-act="add" aria-label="Ajouter une recommandation de ${esc(p.name)}"><span class="rbtn">${icon('plus', { size: 24, stroke: 2.6 })}</span>Ajouter</button>
-      <button type="button" class="ract" data-act="color"><span class="rbtn">${icon('palette', { size: 22 })}</span>Couleur</button>
+      <button type="button" class="ract" data-act="avatar"><span class="rbtn">${icon('camera', { size: 22 })}</span>Photo</button>
       <button type="button" class="ract" data-act="more"><span class="rbtn">${icon('ellipsis', { size: 22 })}</span>Plus</button>
     </div>
     ${all.length ? `
@@ -90,20 +94,58 @@ function render() {
     ${sections || `<div class="empty"><p>Ajoute une recommandation de ${esc(p.name)} avec le bouton +.</p></div>`}`;
 }
 
-function openColor(p) {
+/* Photo et couleur : choisir (photothèque ou appareil photo), recadrer,
+   retirer ; la couleur reste utilisée pour ses étiquettes. */
+function openAvatar(p) {
   const colors = [...new Set([...AVATAR_COLORS, ...SUBCAT_COLORS])];
   const s = openSheet({
-    title: 'Couleur de l’avatar',
-    body: `<div class="preview-sub" data-prev>${avatar(p, 72)}</div>
-      <div class="swatches" style="justify-content:center">${colors.map((c) => `
-        <button type="button" class="swatch" data-color="${c}" style="--c:${c};--ci:${inkOn(c)}" aria-pressed="${c === p.color}" aria-label="Couleur ${c}">
-          ${c === p.color ? icon('check', { size: 18, stroke: 3 }) : ''}</button>`).join('')}</div>`
+    title: 'Photo et couleur',
+    sub: p.name,
+    body: `
+      <div class="avatar-edit" data-r="prev"></div>
+      <div class="photo-btns" data-r="btns"></div>
+      <div class="field"><span class="field-label">Couleur</span>
+        <div class="swatches even" data-r="swatches"></div></div>`,
+    onClose: () => off()
+  });
+  const prev = s.body.querySelector('[data-r="prev"]');
+  const btns = s.body.querySelector('[data-r="btns"]');
+  const swatches = s.body.querySelector('[data-r="swatches"]');
+  let shown;
+  const paint = () => {
+    const cur = getPerson(p.id);
+    if (!cur) { s.close('code'); return; }
+    prev.innerHTML = avatar(cur, 96);
+    if (shown !== undefined && shown !== cur.photo) prev.firstElementChild.classList.add('pop');
+    shown = cur.photo;
+    btns.innerHTML = `
+      <label class="btn btn-soft sm file-btn">${icon('camera', { size: 18 })}${cur.photo ? 'Changer la photo' : 'Choisir une photo'}
+        <input type="file" accept="image/*" class="file-input" data-r="file"></label>
+      ${cur.photo ? `<button type="button" class="btn btn-ghost sm" data-act="unphoto">${icon('trash-2', { size: 17 })}Retirer</button>` : ''}`;
+    swatches.innerHTML = colors.map((c) => `
+      <button type="button" class="swatch" data-color="${c}" style="--c:${c};--ci:${inkOn(c)}" aria-pressed="${c === cur.color}" aria-label="Couleur ${c}">
+        ${c === cur.color ? icon('check', { size: 18, stroke: 3 }) : ''}</button>`).join('');
+  };
+  const off = on('change', paint);
+  paint();
+  s.body.addEventListener('change', async (e) => {
+    if (!e.target.matches('[data-r="file"]')) return;
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const photo = await cropPhoto(file);
+    if (!photo) return;
+    await setPersonPhoto(p.id, photo);
+    haptic();
   });
   s.body.addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-color]');
-    if (!b) return;
-    await setPersonColor(p.id, b.dataset.color);
-    s.close('ok');
+    const c = e.target.closest('[data-color]');
+    if (c) { await setPersonColor(p.id, c.dataset.color); haptic(); return; }
+    if (e.target.closest('[data-act="unphoto"]')) {
+      const old = getPerson(p.id)?.photo;
+      await setPersonPhoto(p.id, null);
+      toast('Photo retirée', { icon: 'trash-2', action: { label: 'Annuler', run: () => setPersonPhoto(p.id, old) } });
+    }
   });
 }
 
@@ -211,7 +253,7 @@ export default {
       switch (b.dataset.act) {
         case 'back': back('#/personnes'); break;
         case 'more': if (p) more(p); break;
-        case 'color': if (p) openColor(p); break;
+        case 'avatar': if (p) openAvatar(p); break;
         case 'add': if (p) hooks.add?.({ personId: p.id }); break;
         case 'fold': {
           const cat = b.dataset.cat;

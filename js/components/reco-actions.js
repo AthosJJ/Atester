@@ -47,7 +47,7 @@ export function openDoneSheet(id, { onDone = null } = {}) {
     const review = s.body.querySelector('textarea').value.trim();
     await setStatus(id, 'done', { rating: stars.get() || null, myReview: review });
     haptic();
-    celebrate(r.left + r.width / 2, r.top, [sub.color, '#F2A33A', '#2E8B57', '#E07A5F']);
+    celebrate(r.left + r.width / 2, r.top, [sub.color, '#F2A33A', '#2E8B57', '#E8846A']);
     s.close('ok');
     toast(`${S.done} : ${reco.title}`, { icon: 'check', tone: 'ok', action: undoWith(snapshot) });
     onDone?.();

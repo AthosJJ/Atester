@@ -150,10 +150,14 @@ export function actionSheet({ title = '', message = '', actions = [], cancel = '
       <div class="asheet" role="alertdialog" aria-modal="true" aria-label="${esc(title || 'Actions')}">
         <div class="asheet-group">
           ${title || message ? `<div class="asheet-head">${title ? `<h3>${esc(title)}</h3>` : ''}${message ? `<p>${esc(message)}</p>` : ''}</div>` : ''}
-          ${actions.map((a, i) => `
-            <button type="button" class="asheet-btn${a.danger ? ' danger' : ''}${a.primary ? ' primary' : ''}${a.checked ? ' check' : ''}" data-i="${i}">
-              ${a.icon ? icon(a.icon, { size: 20 }) : ''}<span>${esc(a.label)}</span>
-            </button>`).join('')}
+          ${actions.map((a, i) => {
+            const cls = `asheet-btn${a.danger ? ' danger' : ''}${a.primary ? ' primary' : ''}${a.checked ? ' check' : ''}`;
+            const inner = `${a.icon ? icon(a.icon, { size: 20 }) : ''}<span>${esc(a.label)}</span>`;
+            // Un choix avec href est un vrai lien (ouverture d'une autre app depuis le geste).
+            return a.href
+              ? `<a class="${cls}" data-i="${i}" href="${esc(a.href)}" target="_blank" rel="noopener">${inner}</a>`
+              : `<button type="button" class="${cls}" data-i="${i}">${inner}</button>`;
+          }).join('')}
         </div>
         <div class="asheet-group">
           <button type="button" class="asheet-btn cancel" data-i="-1">${esc(cancel)}</button>

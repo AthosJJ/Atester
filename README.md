@@ -7,14 +7,14 @@ Cahier des charges : [SPEC.md](SPEC.md) · Améliorations ergonomiques intégré
 ## Fonctionnalités
 
 - **Ajout rapide en un écran** (bouton + central) : catégorie pré-sélectionnée, clavier ouvert sur « Quoi », suggestions dès 3 caractères (lieux via Photon/OpenStreetMap, films et séries via TMDB, podcasts via iTunes), « Je suis devant » (position GPS et adresse), personnes récentes en un tap, sous-catégorie devinée, détection des doublons (« Déjà recommandé par Paul — ajouter Marie ? »), brouillon conservé.
-- **Lieux** : carte Leaflet (épingles colorées par sous-catégorie, groupes au-delà de 30, recadrage automatique, aperçu flottant, itinéraire dans Plans, « Me localiser ») ou liste avec distances, « Zone de la carte ».
+- **Lieux** : carte Leaflet sur fond CARTO épuré (épingles colorées par sous-catégorie, groupes au-delà de 30, recadrage automatique, aperçu flottant, « Me localiser ») ou liste avec distances, « Zone de la carte ». Itinéraire au choix dans Plans, Google Maps ou Waze, ou directement dans l'app choisie en Réglages.
 - **Films et séries** : grille d'affiches 2:3, plateformes en France (JustWatch via TMDB), « Actualiser les plateformes ».
 - **Podcasts** : pochettes, épisode précis, « Ouvrir dans Podcasts ».
-- **Personnes** : compteurs par catégorie, note moyenne, fiche avec « Ses lieux sur la carte », « Ajouter une recommandation de… », renommer, couleur, fusionner, supprimer.
+- **Personnes** : photo facultative (photothèque ou appareil photo, recadrage dans un cercle), compteurs par catégorie, note moyenne, fiche avec « Ses lieux sur la carte », « Ajouter une recommandation de… », renommer, couleur, fusionner, supprimer.
 - **Filtres** communs (personne, sous-catégorie, statut, ville, plateforme, favoris, note minimale) combinables, compteur en direct, valeurs sans résultat grisées, puces retirables, recherche sans accents, tri ; tout est gardé dans l'URL et sur l'appareil.
 - **Statuts** : balayage à gauche pour « testé » (note et avis facultatifs), à droite pour favori ; appui long pour les actions rapides ; annulation partout.
-- **Sauvegarde** : export JSON par la feuille de partage (Enregistrer dans Fichiers, iCloud Drive), import en fusion ou remplacement, rappel au-delà de 14 jours.
-- **Confort** : thèmes clair, sombre ou automatique, boutons ronds animés, respect de « Réduire les animations », cibles de 44 px, exemples chargeables et retirables en un geste.
+- **Sauvegarde** : export JSON par la feuille de partage (Enregistrer dans Fichiers, iCloud Drive), photos des personnes comprises, import en fusion ou remplacement, rappel au-delà de 14 jours.
+- **Confort** : thèmes clair, sombre ou automatique (palette « Encre »), boutons ronds animés, respect de « Réduire les animations », cibles de 44 px, exemples chargeables et retirables en un geste.
 
 ## Déploiement sur GitHub Pages
 
@@ -46,7 +46,7 @@ Sans clé, les films et séries s'ajoutent en saisie libre. Pour les affiches, a
 ```
 index.html              coquille, écrans de lancement iOS
 manifest.webmanifest    manifeste (chemins relatifs)
-sw.js                   service worker : coquille versionnée, tuiles (500) et affiches (300) en cache
+sw.js                   service worker : coquille versionnée, tuiles CARTO (500) et affiches (300) en cache
 css/tokens.css          couleurs et thèmes clair / sombre
 css/app.css             composants et animations
 js/app.js               démarrage, thème, clavier iOS, mises à jour
@@ -54,9 +54,9 @@ js/router.js            routes par hash (#/lieux, #/reco/:id…)
 js/config.js            catégories, sous-catégories par défaut, palettes, version
 js/utils.js             texte, dates relatives, couleurs, stockage local
 js/store/               Dexie (db), recommandations, personnes, filtres, réglages (meta), événements
-js/services/            Photon, TMDB, iTunes, sauvegarde, géolocalisation, carte, exemples, HTTP
+js/services/            Photon, TMDB, iTunes, sauvegarde, géolocalisation, carte, photos, exemples, HTTP
 js/views/               Lieux, Films & séries, Podcasts, Personnes, fiches, ajout, réglages
-js/components/          barre d'onglets, panneaux, filtres, cartes, avatars, notes, toasts, gestes, icônes
+js/components/          barre d'onglets, panneaux, filtres, cartes, avatars, recadrage photo, itinéraire, notes, toasts, gestes, icônes
 vendor/                 Dexie 4, Leaflet 1.9, Leaflet.markercluster 1.5 (hors ligne, sans CDN)
 icons/                  icônes 64, 180, 192, 512, maskable et écrans de lancement
 tools/                  make-icons.mjs, extract-icons.mjs, check-sw.mjs
@@ -64,4 +64,4 @@ tools/                  make-icons.mjs, extract-icons.mjs, check-sw.mjs
 
 ## Crédits
 
-Carte © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), Leaflet ; recherche de lieux Photon (komoot). Films et séries : [TMDB](https://www.themoviedb.org) — ce produit utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB ; plateformes : JustWatch. Podcasts : API iTunes Search d'Apple. Icônes Lucide (ISC). Dexie (Apache 2.0), Leaflet et Leaflet.markercluster (BSD / MIT), licences dans `vendor/`.
+Carte : données © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), fonds de carte © [CARTO](https://carto.com/attributions), Leaflet ; recherche de lieux Photon (komoot). Films et séries : [TMDB](https://www.themoviedb.org) — ce produit utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB ; plateformes : JustWatch. Podcasts : API iTunes Search d'Apple. Icônes Lucide (ISC). Dexie (Apache 2.0), Leaflet et Leaflet.markercluster (BSD / MIT), licences dans `vendor/`.

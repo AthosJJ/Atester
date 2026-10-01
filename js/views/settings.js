@@ -1,19 +1,20 @@
 /* Réglages : sauvegarde (rappel à 14 jours), sous-catégories (ajout, renommage,
-   couleur, icône, ordre par glisser), clé TMDB, thème, exemples, mise à jour,
-   à propos et attributions, zone dangereuse (double confirmation). */
+   couleur, icône, ordre par glisser), clé TMDB, thème, carte et itinéraire,
+   exemples, mise à jour, à propos et attributions, zone dangereuse (double
+   confirmation). */
 import { icon } from '../components/icons.js';
 import { subBubble } from '../components/reco-card.js';
 import { openSheet, actionSheet, confirmSheet } from '../components/bottom-sheet.js';
 import { toast } from '../components/toast.js';
 import {
-  getMeta, setMeta, subcats, subcat, addSubcat, updateSubcat, removeSubcat, reorderSubcats
+  getMeta, setMeta, getPref, setPref, subcats, subcat, addSubcat, updateSubcat, removeSubcat, reorderSubcats
 } from '../store/settings.js';
 import { allRecos, reassignSubcat } from '../store/recommendations.js';
 import { getFilters, setFilters } from '../store/filters.js';
 import { exportBackup, parseBackup, importMerge, importReplace, backupDue, wipeAll } from '../services/backup.js';
 import { getKey, saveKey, testKey, keyStatus } from '../services/tmdb.js';
 import { loadDemo, removeDemo, hasDemo } from '../services/demo.js';
-import { APP_VERSION, CATEGORIES, CATEGORY_KEYS, TAB_OF, SUBCAT_COLORS, PICKER_ICONS } from '../config.js';
+import { APP_VERSION, CATEGORIES, CATEGORY_KEYS, TAB_OF, SUBCAT_COLORS, PICKER_ICONS, MAP_STYLES, NAV_APPS } from '../config.js';
 import { esc, inkOn, relDate, longDate, clamp, haptic, isStandalone, IS_IOS } from '../utils.js';
 import { back } from '../router.js';
 
@@ -22,7 +23,7 @@ export const settingsHooks = { setTheme: null, getTheme: () => 'auto', checkUpda
 let section, navbar, wrap;
 let subCat = 'place';
 
-function row({ act, ico, color = '#E07A5F', title, sub = '', val = '', danger = false, chevron = false, tag = 'button', attrs = '' }) {
+function row({ act, ico, color = '#5B6B7C', title, sub = '', val = '', danger = false, chevron = false, tag = 'button', attrs = '' }) {
   return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="srow${danger ? ' danger' : ''}" ${act ? `data-act="${act}"` : ''} ${attrs}>
     <span class="bubble" style="--c:${color};--ci:${inkOn(color)}">${icon(ico, { size: 18 })}</span>
     <span class="grow">${esc(title)}${sub ? `<span class="sub">${sub}</span>` : ''}</span>
@@ -49,6 +50,9 @@ function render() {
   const status = keyStatus();
   const demo = hasDemo();
   const total = allRecos().length;
+  const mapStyle = getPref('mapStyle', 'voyager');
+  const navApp = getPref('navApp', 'ask');
+  const navChoices = [{ key: 'ask', short: 'Demander' }, ...NAV_APPS.map((a) => ({ key: a.key, short: a.key === 'google' ? 'Google' : a.label }))];
 
   wrap.innerHTML = `
     <h1 class="settings-title">Réglages</h1>
@@ -106,6 +110,22 @@ function render() {
     </section>
 
     <section class="sgroup">
+      <h2 class="sgroup-title">Carte et itinéraire</h2>
+      <p class="hint" style="margin:0 8px 8px">Style de la carte (elle passe en sombre avec le thème sombre)</p>
+      <div class="seg" role="group" aria-label="Style de la carte" style="--n:2;--i:${mapStyle === 'positron' ? 1 : 0}">
+        <span class="seg-thumb" aria-hidden="true"></span>
+        <button type="button" data-mapstyle="voyager" aria-pressed="${mapStyle !== 'positron'}">${icon('palette', { size: 16 })}${esc(MAP_STYLES.voyager.label)}</button>
+        <button type="button" data-mapstyle="positron" aria-pressed="${mapStyle === 'positron'}">${icon('map', { size: 16 })}${esc(MAP_STYLES.positron.label)}</button>
+      </div>
+      <p class="hint" style="margin:4px 8px 8px">Itinéraire avec</p>
+      <div class="seg" role="group" aria-label="Application d’itinéraire" style="--n:4;--i:${Math.max(0, navChoices.findIndex((c) => c.key === navApp))}">
+        <span class="seg-thumb" aria-hidden="true"></span>
+        ${navChoices.map((c) => `<button type="button" data-navapp="${c.key}" aria-pressed="${c.key === navApp}">${esc(c.short)}</button>`).join('')}
+      </div>
+      <p class="hint">${navApp === 'ask' ? 'Le bouton Itinéraire te demandera Plans, Google Maps ou Waze.' : `Le bouton Itinéraire ouvre directement ${esc(NAV_APPS.find((a) => a.key === navApp).label)}.`}</p>
+    </section>
+
+    <section class="sgroup">
       <h2 class="sgroup-title">Exemples</h2>
       <div class="scard">
         ${demo
@@ -117,7 +137,7 @@ function render() {
     <section class="sgroup">
       <h2 class="sgroup-title">Application</h2>
       <div class="scard">
-        ${!isStandalone() ? row({ act: 'install', ico: 'square-plus', color: '#E07A5F', title: 'Installer sur l’écran d’accueil', chevron: true }) : ''}
+        ${!isStandalone() ? row({ act: 'install', ico: 'square-plus', color: '#5B6B7C', title: 'Installer sur l’écran d’accueil', chevron: true }) : ''}
         ${row({ act: 'update', ico: 'refresh-cw', color: '#2F8FD8', title: 'Rechercher une mise à jour', val: `v${APP_VERSION}` })}
       </div>
     </section>
@@ -127,7 +147,7 @@ function render() {
       <div class="scard about">
         <p><b style="color:var(--ink)">À tester</b> · version ${APP_VERSION}. Tes recommandations, avec la personne qui te les a faites. 100 % local : pas de compte, pas de serveur.</p>
         <p>Sur iPhone, iOS peut dans certains cas effacer les données d’un site web ou d’une app web peu utilisée. <b>L’export JSON est ta vraie sauvegarde</b> : pense à en faire un de temps en temps.</p>
-        <p>Carte : <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, affichée avec Leaflet. Recherche de lieux : Photon (komoot), données OpenStreetMap.</p>
+        <p>Carte : données <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, fonds de carte <a href="https://carto.com/attributions" target="_blank" rel="noopener">© CARTO</a>, affichée avec Leaflet. Recherche de lieux : Photon (komoot), données OpenStreetMap.</p>
         <p>Films et séries : <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. Plateformes de streaming : JustWatch.</p>
         <p>Podcasts : API iTunes Search d’Apple. Icônes : Lucide (ISC). Base locale : Dexie.</p>
       </div>
@@ -355,9 +375,11 @@ export default {
     wrap = section.querySelector('.vwrap');
 
     section.addEventListener('click', async (e) => {
-      const t = e.target.closest('[data-act], [data-subcat], [data-theme-set]');
+      const t = e.target.closest('[data-act], [data-subcat], [data-theme-set], [data-mapstyle], [data-navapp]');
       if (!t) return;
       if (t.dataset.subcat) { subCat = t.dataset.subcat; render(); return; }
+      if (t.dataset.mapstyle) { await setPref('mapStyle', t.dataset.mapstyle); return; }
+      if (t.dataset.navapp) { await setPref('navApp', t.dataset.navapp); return; }
       if (t.dataset.themeSet) { settingsHooks.setTheme?.(t.dataset.themeSet); render(); return; }
       switch (t.dataset.act) {
         case 'back': back('#/lieux'); break;

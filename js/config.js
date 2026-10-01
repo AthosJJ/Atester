@@ -1,7 +1,7 @@
 /* Configuration : catégories, sous-catégories par défaut, libellés, palettes.
    APP_VERSION doit suivre CACHE_VERSION de sw.js (a-tester-vX.Y.Z). */
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 export const APP_ID = 'a-tester';
 export const SCHEMA_VERSION = 1;
 
@@ -119,6 +119,19 @@ export const EMPTY = {
   filtered: { title: 'Aucun résultat avec ces filtres', text: 'Essaie d’en retirer un ou deux.' }
 };
 
-export const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-export const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
+/* Fonds de carte CARTO (données OpenStreetMap), nets sur écran Retina ({r} = @2x).
+   « Voyager » : couleurs douces ; « Positron » : épuré ; « Dark Matter » en thème sombre. */
+export const MAP_STYLES = {
+  voyager: { label: 'Couleurs douces', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' },
+  positron: { label: 'Épuré', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' },
+  dark: { label: 'Sombre', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' }
+};
+export const MAP_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+
+/* Applications d'itinéraire proposées (on ne peut pas savoir lesquelles sont installées). */
+export const NAV_APPS = [
+  { key: 'apple', label: 'Plans', icon: 'map' },
+  { key: 'google', label: 'Google Maps', icon: 'map-pin' },
+  { key: 'waze', label: 'Waze', icon: 'navigation' }
+];
 export const DEFAULT_MAP_VIEW = { lat: 46.6, lng: 2.4, zoom: 5 }; // France entière

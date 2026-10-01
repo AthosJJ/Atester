@@ -5,16 +5,15 @@
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-round: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  /* Accent terracotta. --accent-strong porte du texte blanc (4,9:1),
-     --accent-ink sert au texte sur le fond clair (4,9:1). */
-  --accent: #E07A5F;
-  --accent-strong: #BD4E33;
-  --accent-ink: #B54A31;
-  --on-accent: #FFFFFF;
-  --accent-soft: rgba(224, 122, 95, 0.14);
-  --accent-soft-2: rgba(224, 122, 95, 0.26);
-  --accent-grad: linear-gradient(150deg, #EE9477 0%, #D8674B 52%, #BD4E33 100%);
-  --band: linear-gradient(100deg, #C9573B 0%, #D96B4F 55%, #E08466 100%);
+  /* Palette « Encre » : boutons pleins encre (texte crème, 14:1), touches de
+     corail pour l'accent ; --accent-ink sert au texte d'accent sur fond clair (5,4:1). */
+  --accent: #E8846A;
+  --accent-strong: #2A2420;
+  --accent-ink: #A9472E;
+  --on-accent: #FFF8F2;
+  --accent-soft: rgba(232, 132, 106, 0.14);
+  --accent-soft-2: rgba(232, 132, 106, 0.26);
+  --accent-grad: linear-gradient(150deg, #463B35 0%, #2A2420 55%, #1C1714 100%);
 
   --bg: #FAF6F1;
   --bg-2: #F1EAE2;
@@ -30,6 +29,18 @@
   --glass: rgba(255, 251, 247, 0.80);
   --glass-strong: rgba(255, 251, 247, 0.92);
   --scrim: rgba(30, 18, 10, 0.40);
+  --photo-dim: rgba(0, 0, 0, 0.48);      /* hors du cercle de recadrage */
+  --photo-ring: rgba(255, 255, 255, 0.92);
+  --on-color: #FFFFFF;                    /* texte et liseré sur une pastille colorée */
+
+  /* Carte : épingles, groupes, position */
+  --pin-ring: #FFFFFF;
+  --pin-shadow: 0 3px 10px rgba(30, 20, 10, 0.22);
+  --pin-lift: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --cluster-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  --me: #2F80ED;
+  --me-halo: rgba(47, 128, 237, 0.35);
+  --me-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 
   --ok: #2E8B57;
   --ok-soft: rgba(46, 139, 87, 0.14);
@@ -46,8 +57,8 @@
   --shadow-1: 0 1px 2px rgba(70, 45, 20, 0.06), 0 4px 14px rgba(70, 45, 20, 0.06);
   --shadow-2: 0 2px 6px rgba(70, 45, 20, 0.08), 0 12px 30px rgba(70, 45, 20, 0.12);
   --shadow-3: 0 10px 24px rgba(70, 45, 20, 0.14), 0 24px 60px rgba(70, 45, 20, 0.18);
-  --shadow-accent: 0 8px 22px rgba(189, 78, 51, 0.36), 0 2px 6px rgba(189, 78, 51, 0.24);
-  --ring: 0 0 0 3px rgba(224, 122, 95, 0.45);
+  --shadow-accent: 0 8px 22px rgba(30, 24, 20, 0.28), 0 2px 6px rgba(30, 24, 20, 0.18);
+  --ring: 0 0 0 3px rgba(232, 132, 106, 0.45);
 
   --r-xs: 8px;
   --r-sm: 12px;
@@ -74,14 +85,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --accent: #F08A6E;
-    --accent-strong: #EE8C70;
-    --accent-ink: #F4A085;
-    --on-accent: #22120B;
-    --accent-soft: rgba(240, 138, 110, 0.16);
-    --accent-soft-2: rgba(240, 138, 110, 0.28);
-    --accent-grad: linear-gradient(150deg, #F7A88D 0%, #EE8C70 50%, #DD7255 100%);
-    --band: linear-gradient(100deg, #1A1613 0%, #1F1A16 100%);
+    --accent: #F0937A;
+    --accent-strong: #F2EBE3;
+    --accent-ink: #F4A68C;
+    --on-accent: #1C1714;
+    --accent-soft: rgba(240, 147, 122, 0.16);
+    --accent-soft-2: rgba(240, 147, 122, 0.28);
+    --accent-grad: linear-gradient(150deg, #FFFFFF 0%, #F2EBE3 55%, #DDD2C6 100%);
 
     --bg: #13110F;
     --bg-2: #211D1A;
@@ -97,6 +107,8 @@
     --glass: rgba(34, 30, 27, 0.78);
     --glass-strong: rgba(34, 30, 27, 0.94);
     --scrim: rgba(0, 0, 0, 0.58);
+    --pin-ring: #2A2622;
+    --pin-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 
     --ok: #4CC38A;
     --ok-soft: rgba(76, 195, 138, 0.16);
@@ -110,22 +122,21 @@
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 30px rgba(0, 0, 0, 0.35);
     --shadow-3: 0 16px 50px rgba(0, 0, 0, 0.6);
-    --shadow-accent: 0 8px 24px rgba(240, 138, 110, 0.28), 0 2px 6px rgba(0, 0, 0, 0.4);
-    --ring: 0 0 0 3px rgba(240, 138, 110, 0.5);
+    --shadow-accent: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+    --ring: 0 0 0 3px rgba(240, 147, 122, 0.5);
 
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --accent: #F08A6E;
-  --accent-strong: #EE8C70;
-  --accent-ink: #F4A085;
-  --on-accent: #22120B;
-  --accent-soft: rgba(240, 138, 110, 0.16);
-  --accent-soft-2: rgba(240, 138, 110, 0.28);
-  --accent-grad: linear-gradient(150deg, #F7A88D 0%, #EE8C70 50%, #DD7255 100%);
-  --band: linear-gradient(100deg, #1A1613 0%, #1F1A16 100%);
+  --accent: #F0937A;
+  --accent-strong: #F2EBE3;
+  --accent-ink: #F4A68C;
+  --on-accent: #1C1714;
+  --accent-soft: rgba(240, 147, 122, 0.16);
+  --accent-soft-2: rgba(240, 147, 122, 0.28);
+  --accent-grad: linear-gradient(150deg, #FFFFFF 0%, #F2EBE3 55%, #DDD2C6 100%);
 
   --bg: #13110F;
   --bg-2: #211D1A;
@@ -141,6 +152,8 @@
   --glass: rgba(34, 30, 27, 0.78);
   --glass-strong: rgba(34, 30, 27, 0.94);
   --scrim: rgba(0, 0, 0, 0.58);
+  --pin-ring: #2A2622;
+  --pin-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 
   --ok: #4CC38A;
   --ok-soft: rgba(76, 195, 138, 0.16);
@@ -154,8 +167,8 @@
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 30px rgba(0, 0, 0, 0.35);
   --shadow-3: 0 16px 50px rgba(0, 0, 0, 0.6);
-  --shadow-accent: 0 8px 24px rgba(240, 138, 110, 0.28), 0 2px 6px rgba(0, 0, 0, 0.4);
-  --ring: 0 0 0 3px rgba(240, 138, 110, 0.5);
+  --shadow-accent: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --ring: 0 0 0 3px rgba(240, 147, 122, 0.5);
 
   color-scheme: dark;
 }

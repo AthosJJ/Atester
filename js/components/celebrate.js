@@ -1,7 +1,7 @@
 /* Petite gerbe de confettis quand on marque une recommandation comme testée. */
 import { reducedMotion } from '../utils.js';
 
-export function celebrate(x, y, colors = ['#E07A5F', '#F2A33A', '#2E8B57', '#3A7BD5']) {
+export function celebrate(x, y, colors = ['#E8846A', '#F2A33A', '#2E8B57', '#3A7BD5']) {
   if (reducedMotion() || !Element.prototype.animate) return;
   const wrap = document.createElement('div');
   wrap.className = 'burst';

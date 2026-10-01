@@ -23,7 +23,7 @@ import { searchTitles, fetchDetails, hasUsableKey, posterUrl } from '../services
 import { searchShows, searchEpisodes } from '../services/itunes.js';
 import { isAbort, errorMessage } from '../services/http.js';
 import { getPosition, lastPosition, geoErrorMessage } from '../services/geo.js';
-import { loadLeaflet, osmLayer, pinIcon } from '../services/map.js';
+import { loadLeaflet, attachBaseLayer, pinIcon } from '../services/map.js';
 import { CATEGORIES, CATEGORY_KEYS, TAB_OF, SEARCH_DEBOUNCE, DEFAULT_MAP_VIEW } from '../config.js';
 import { esc, inkOn, debounce, localDateISO, safeUrl, colorFromName, lsGet, lsSet, haptic, reducedMotion } from '../utils.js';
 
@@ -326,7 +326,7 @@ async function initMiniMap() {
     const center = has ? [d.lat, d.lng] : pos ? [pos.lat, pos.lng] : [DEFAULT_MAP_VIEW.lat, DEFAULT_MAP_VIEW.lng];
     const map = L.map(el, { zoomControl: false, attributionControl: true, tap: false });
     map.attributionControl.setPrefix(false);
-    osmLayer(L).addTo(map);
+    attachBaseLayer(L, map);
     map.setView(center, has ? 16 : pos ? 14 : DEFAULT_MAP_VIEW.zoom, { animate: false });
     const place = (latlng) => {
       f.details.lat = +latlng.lat.toFixed(6);

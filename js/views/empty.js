@@ -7,10 +7,10 @@ import { esc, inkOn } from '../utils.js';
 
 function art(cat) {
   const list = cat ? subcats(cat) : [];
-  const main = { color: '#D2644A', icon: cat ? CATEGORIES[cat].icon : 'users' };
+  const main = { color: 'var(--accent-strong)', ink: 'var(--on-accent)', icon: cat ? CATEGORIES[cat].icon : 'users' };
   const a = list[0] || { color: '#3A7BD5', icon: 'star' };
   const b = list[1] || { color: '#3E9B5F', icon: 'heart' };
-  const bubble = (s, cls) => `<span class="bubble ${cls}" style="--c:${s.color};--ci:${inkOn(s.color)}">${icon(s.icon, { size: cls === 'b1' ? 30 : 20 })}</span>`;
+  const bubble = (s, cls) => `<span class="bubble ${cls}" style="--c:${s.color};--ci:${s.ink || inkOn(s.color)}">${icon(s.icon, { size: cls === 'b1' ? 30 : 20 })}</span>`;
   return `<div class="empty-art" aria-hidden="true">${bubble(a, 'b2')}${bubble(main, 'b1')}${bubble(b, 'b3')}</div>`;
 }
 

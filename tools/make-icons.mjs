@@ -1,8 +1,8 @@
 /* Génère les icônes PWA et les écrans de lancement iOS, sans dépendance.
    Usage : node tools/make-icons.mjs
-   Motif : bulle de conversation blanche (« on m'a conseillé ») et coche
-   terracotta (« testé »), sur un dégradé terracotta. Rendu par champs de
-   distance signée, avec anticrénelage. */
+   Motif : bulle de conversation crème (« on m'a conseillé ») et coche
+   corail (« testé »), sur un dégradé encre (palette « Encre »). Rendu par
+   champs de distance signée, avec anticrénelage. */
 import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -83,10 +83,10 @@ function sdTriangle(px, py, [ax, ay], [bx, by], [cx, cy]) {
   return -Math.sqrt(dmin) * Math.sign(smin);
 }
 
-const BG_A = hex('#F4A083');
-const BG_B = hex('#C4553A');
-const WHITE = [255, 255, 255];
-const CHECK = hex('#CF6044');
+const BG_A = hex('#4E433C');
+const BG_B = hex('#1A1512');
+const WHITE = hex('#FFF8F2');
+const CHECK = hex('#E8846A');
 
 /* Couleur d'un point du glyphe (coordonnées normalisées 0–1), s = taille en px. */
 function glyph(u, v, s, scale = 1) {
@@ -99,7 +99,7 @@ function glyph(u, v, s, scale = 1) {
   const t = clamp01((u * 0.55 + v * 0.8) / 1.25);
   let col = mix(BG_A, BG_B, t);
   const glow = Math.max(0, 1 - Math.hypot(u - 0.2, v - 0.12) / 0.75);
-  col = mix(col, [255, 214, 196], glow * 0.22);
+  col = mix(col, [120, 98, 86], glow * 0.35);
 
   // Bulle : rectangle arrondi + queue
   const body = sdRoundRect(x, y, 0.5, 0.46, 0.285, 0.215, 0.14);
@@ -111,8 +111,8 @@ function glyph(u, v, s, scale = 1) {
     sdRoundRect(x, y - 0.03, 0.5, 0.46, 0.285, 0.215, 0.14),
     sdTriangle(x, y - 0.03, [0.335, 0.58], [0.285, 0.775], [0.5, 0.64]) - 0.012
   );
-  const shadow = (1 - smooth(-0.02, 0.07, shadowD)) * 0.28;
-  col = mix(col, [120, 40, 20], shadow);
+  const shadow = (1 - smooth(-0.02, 0.07, shadowD)) * 0.45;
+  col = mix(col, [8, 6, 5], shadow);
 
   const aBubble = clamp01(0.5 - bubble / px);
   col = mix(col, WHITE, aBubble);

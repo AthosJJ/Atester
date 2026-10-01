@@ -11,7 +11,8 @@ import { openDoneSheet, markTodo, markDropped, toggleFav, deleteWithUndo } from 
 import { getReco, updateReco } from '../store/recommendations.js';
 import { personsOf } from '../store/persons.js';
 import { subcat } from '../store/settings.js';
-import { loadLeaflet, osmLayer, pinIcon, directionsUrl } from '../services/map.js';
+import { loadLeaflet, attachBaseLayer, pinIcon, directionsUrl } from '../services/map.js';
+import { directionsButton } from '../components/directions.js';
 import { fetchDetails, hasUsableKey } from '../services/tmdb.js';
 import { errorMessage } from '../services/http.js';
 import { openEdit } from './add.js';
@@ -64,7 +65,7 @@ async function initMiniMap(r) {
       boxZoom: false, keyboard: false, tap: false, fadeAnimation: false
     });
     miniMap.attributionControl.setPrefix(false);
-    osmLayer(L).addTo(miniMap);
+    attachBaseLayer(L, miniMap);
     miniMap.setView([r.details.lat, r.details.lng], 15, { animate: false });
     L.marker([r.details.lat, r.details.lng], {
       icon: pinIcon(L, subcat('place', r.subcategory), { status: 'todo', favorite: r.favorite }), interactive: false, keyboard: false
@@ -88,7 +89,7 @@ function infoBlock(r) {
       <h2 class="block-title">${icon('map-pin', { size: 16 })}Adresse</h2>
       ${hasAddr ? `<p class="v" style="font-weight:700;font-size:16px">${esc(d.address || d.city)}</p>${d.address && d.city ? `<p class="muted">${esc(d.city)}</p>` : ''}` : '<p class="muted">Pas encore d’adresse.</p>'}
       <div class="addr-actions">
-        <a class="btn btn-primary sm" href="${esc(directionsUrl(r))}" target="_blank" rel="noopener">${icon('navigation', { size: 17 })}Itinéraire</a>
+        ${directionsButton(r, { cls: 'btn btn-primary sm', size: 17 })}
         ${hasAddr ? `<button type="button" class="btn btn-soft sm" data-act="copy-address">${icon('copy', { size: 17 })}Copier l’adresse</button>` : ''}
       </div>
       ${d.lat == null ? `<button type="button" class="btn btn-ghost sm block" data-act="edit-position" style="margin-top:10px">${icon('map-pin', { size: 17 })}Ajouter la position</button>` : ''}

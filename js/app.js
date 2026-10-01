@@ -3,7 +3,7 @@
 import { db } from './store/db.js';
 import { on } from './store/events.js';
 import { loadMeta } from './store/settings.js';
-import { loadRecos, allRecos } from './store/recommendations.js';
+import { loadRecos, allRecos, getReco } from './store/recommendations.js';
 import { loadPersons, ensureMe } from './store/persons.js';
 import {
   CONTENT_TABS, hasFilterParams, fromParams, replaceFilters, toQuery, resetFilters
@@ -13,8 +13,10 @@ import { renderTabbar, setActiveTab, showTabbar, setFabInvite } from './componen
 import { toast, showUpdateBanner } from './components/toast.js';
 import { openSheet, closeAllSheets, closeTopSheet, openSheets } from './components/bottom-sheet.js';
 import { hooks as recoHooks } from './components/reco-actions.js';
+import { chooseDirections } from './components/directions.js';
 import { icon } from './components/icons.js';
 import { silentPosition } from './services/geo.js';
+import { refreshBaseLayers } from './services/map.js';
 import { loadDemo } from './services/demo.js';
 import { openAdd, openEdit, addHooks } from './views/add.js';
 import { personHooks } from './views/person-detail.js';
@@ -52,7 +54,13 @@ function applyTheme(pref = lsGet('theme') || 'auto') {
   else root.setAttribute('data-theme', pref);
   const dark = pref === 'dark' || (pref === 'auto' && darkQuery.matches);
   root.setAttribute('data-scheme', dark ? 'dark' : 'light');
-  $('meta[name="theme-color"]')?.setAttribute('content', dark ? '#13110F' : '#FAF6F1');
+  // La barre d'état suit la couleur de fond (un thème forcé l'emporte sur celui du système).
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    const forLight = (m.getAttribute('media') || '').includes('light');
+    const color = pref === 'auto' ? (forLight ? '#FAF6F1' : '#13110F') : (dark ? '#13110F' : '#FAF6F1');
+    m.setAttribute('content', color);
+  });
+  refreshBaseLayers();
 }
 
 function setTheme(pref) {
@@ -208,7 +216,7 @@ function openInstall() {
       <p class="hint" style="text-align:center;margin-bottom:14px">Ajoute l’app à ton écran d’accueil : elle s’ouvrira en plein écran, même hors ligne.</p>
       <div class="steps">
         <div class="step"><span class="bubble" style="--c:#3A7BD5">${icon('share', { size: 20 })}</span><span>Touche <b>Partager</b> dans la barre de Safari</span></div>
-        <div class="step"><span class="bubble" style="--c:#E07A5F">${icon('square-plus', { size: 20 })}</span><span>Choisis <b>Sur l’écran d’accueil</b></span></div>
+        <div class="step"><span class="bubble" style="--c:var(--accent-strong);--ci:var(--on-accent)">${icon('square-plus', { size: 20 })}</span><span>Choisis <b>Sur l’écran d’accueil</b></span></div>
         <div class="step"><span class="bubble" style="--c:#2E8B57">${icon('check', { size: 20 })}</span><span>Ouvre <b>À tester</b> depuis son icône</span></div>
       </div>`,
     foot: '<button type="button" class="btn btn-primary block" data-close>J’ai compris</button>'
@@ -262,17 +270,22 @@ function wire() {
     replaceQuiet(tabHash(tab));
   });
   on('meta', (key) => {
-    if (['subcategories', 'lastBackupAt', 'tmdbKeyStatus', 'demo'].includes(key)) {
+    if (['subcategories', 'lastBackupAt', 'tmdbKeyStatus', 'demo', 'prefs'].includes(key)) {
       document.documentElement.classList.add('no-anim');
       current?.view.refresh?.({ source: 'meta' });
     }
   });
 
   document.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-open], [data-act="add"], [data-act="demo"], [data-act="reset"], [data-act="hide-hint"]');
+    const t = e.target.closest('[data-open], [data-act="add"], [data-act="demo"], [data-act="reset"], [data-act="hide-hint"], [data-act="directions"]');
     if (!t) return;
     if (t.dataset.open) { go(`#/reco/${encodeURIComponent(t.dataset.open)}`); return; }
     switch (t.dataset.act) {
+      case 'directions': {
+        const r = getReco(t.dataset.id);
+        if (r) chooseDirections(r);
+        break;
+      }
       case 'add': openAdd({ category: t.dataset.cat || currentCategory() }); break;
       case 'demo':
         loadDemo().then((n) => toast(`${n} exemples chargés — retirables dans les réglages`, { icon: 'sparkles' }));
@@ -285,10 +298,12 @@ function wire() {
     }
   });
 
-  // Image introuvable : vignette colorée avec le titre.
+  // Image introuvable : vignette colorée avec le titre ; initiales pour un avatar.
   document.addEventListener('error', (e) => {
     const img = e.target;
-    if (!(img instanceof HTMLImageElement) || !img.dataset.phColor) return;
+    if (!(img instanceof HTMLImageElement)) return;
+    if (img.parentElement?.classList.contains('avatar')) { img.parentElement.classList.remove('has-photo'); img.remove(); return; }
+    if (!img.dataset.phColor) return;
     const ph = document.createElement('span');
     ph.className = 'ph';
     ph.style.setProperty('--c', img.dataset.phColor);

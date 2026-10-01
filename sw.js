@@ -3,8 +3,8 @@
    limité ; appels API (Photon, TMDB, iTunes) toujours sur le réseau.
    Publier une version = incrémenter CACHE_VERSION (et APP_VERSION dans js/config.js).
    Vérifier la liste : node tools/check-sw.mjs */
-const CACHE_VERSION = 'a-tester-v1.0.0';
-const TILE_CACHE = 'a-tester-tiles';
+const CACHE_VERSION = 'a-tester-v1.1.0';
+const TILE_CACHE = 'a-tester-tiles-carto'; // 1.1 : fonds CARTO (l'ancien cache OSM est purgé)
 const IMG_CACHE = 'a-tester-images';
 const MAX_TILES = 500;
 const MAX_IMAGES = 300;
@@ -31,6 +31,7 @@ const SHELL = [
   './js/services/http.js',
   './js/services/itunes.js',
   './js/services/map.js',
+  './js/services/photo.js',
   './js/services/photon.js',
   './js/services/tmdb.js',
   './js/views/add.js',
@@ -46,9 +47,11 @@ const SHELL = [
   './js/views/settings.js',
   './js/components/bottom-sheet.js',
   './js/components/celebrate.js',
+  './js/components/directions.js',
   './js/components/filter-sheet.js',
   './js/components/icons.js',
   './js/components/person-avatar.js',
+  './js/components/photo-crop.js',
   './js/components/rating.js',
   './js/components/reco-actions.js',
   './js/components/reco-card.js',
@@ -88,13 +91,13 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys
-        .filter((k) => k.startsWith('a-tester-v') && k !== CACHE_VERSION)
+        .filter((k) => k.startsWith('a-tester-') && ![CACHE_VERSION, TILE_CACHE, IMG_CACHE].includes(k))
         .map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
-const isTile = (host) => host === 'tile.openstreetmap.org' || host.endsWith('.tile.openstreetmap.org');
+const isTile = (host) => host.endsWith('.basemaps.cartocdn.com');
 const isImage = (host) => host === 'image.tmdb.org' || host.endsWith('.mzstatic.com');
 
 self.addEventListener('fetch', (event) => {

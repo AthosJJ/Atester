@@ -6,6 +6,7 @@ import { emit } from '../store/events.js';
 import { allRecos, normalizeReco, findDuplicate, loadRecos } from '../store/recommendations.js';
 import { allPersons, getPerson, findByName, me, loadPersons, ensureMe } from '../store/persons.js';
 import { subcats, getMeta, setMeta, mergeSubcats, replaceSubcats } from '../store/settings.js';
+import { isPhoto } from './photo.js';
 import { localDateISO, nowISO, uid, colorFromName } from '../utils.js';
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -16,7 +17,9 @@ export function buildExport() {
     app: APP_ID,
     schemaVersion: SCHEMA_VERSION,
     exportedAt: nowISO(),
-    persons: allPersons().map(({ id, name, color, isMe, createdAt }) => ({ id, name, color, isMe: Boolean(isMe), createdAt })),
+    persons: allPersons().map(({ id, name, color, isMe, createdAt, photo }) => ({
+      id, name, color, isMe: Boolean(isMe), createdAt, ...(photo ? { photo } : {})
+    })),
     recommendations: allRecos(),
     subcategories: { place: subcats('place'), screen: subcats('screen'), podcast: subcats('podcast') }
   };
@@ -92,6 +95,8 @@ function migrate(data) {
   return data;
 }
 
+/* La photo (champ optionnel ajouté en 1.1) n'est gardée que si c'est bien une
+   petite image JPEG, PNG ou WebP en data URL. */
 function cleanPerson(p) {
   const name = p.name.trim().replace(/\s+/g, ' ').slice(0, 40);
   return {
@@ -99,7 +104,8 @@ function cleanPerson(p) {
     name,
     color: HEX.test(p.color || '') ? p.color : colorFromName(name),
     isMe: Boolean(p.isMe),
-    createdAt: validDate(p.createdAt) || nowISO()
+    createdAt: validDate(p.createdAt) || nowISO(),
+    ...(isPhoto(p.photo) ? { photo: p.photo } : {})
   };
 }
 
@@ -150,12 +156,18 @@ export async function importMerge(data) {
   const myId = me().id;
   const idMap = new Map();
   const newPersons = [];
+  const withPhoto = new Map(); // personnes existantes sans photo qui en reçoivent une
+  const adoptPhoto = (local, raw) => {
+    if (!local.photo && !withPhoto.has(local.id) && isPhoto(raw.photo)) withPhoto.set(local.id, { ...local, photo: raw.photo });
+  };
   for (const raw of data.persons) {
-    if (raw.isMe) { idMap.set(raw.id, myId); continue; }
-    if (getPerson(raw.id)) { idMap.set(raw.id, raw.id); continue; }
+    if (raw.isMe) { idMap.set(raw.id, myId); adoptPhoto(me(), raw); continue; }
+    if (getPerson(raw.id)) { idMap.set(raw.id, raw.id); adoptPhoto(getPerson(raw.id), raw); continue; }
     const p = cleanPerson(raw);
-    const same = findByName(p.name) || newPersons.find((n) => n.name.toLowerCase() === p.name.toLowerCase());
-    if (same) { idMap.set(raw.id, same.id); continue; }
+    const known = findByName(p.name);
+    if (known) { idMap.set(raw.id, known.id); adoptPhoto(known, raw); continue; }
+    const fresh = newPersons.find((n) => n.name.toLowerCase() === p.name.toLowerCase());
+    if (fresh) { idMap.set(raw.id, fresh.id); if (!fresh.photo && p.photo) fresh.photo = p.photo; continue; }
     newPersons.push(p);
     idMap.set(raw.id, p.id);
   }
@@ -196,7 +208,7 @@ export async function importMerge(data) {
   }
 
   await db.transaction('rw', db.recommendations, db.persons, async () => {
-    if (newPersons.length) await db.persons.bulkPut(newPersons);
+    if (newPersons.length || withPhoto.size) await db.persons.bulkPut([...newPersons, ...withPhoto.values()]);
     if (toPut.size) await db.recommendations.bulkPut([...toPut.values()]);
   });
   await mergeSubcats(data.subcategories);
