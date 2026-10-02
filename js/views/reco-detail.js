@@ -87,7 +87,7 @@ function infoBlock(r) {
     const hasAddr = d.address || d.city;
     return `<section class="dblock">
       <h2 class="block-title">${icon('map-pin', { size: 16 })}Adresse</h2>
-      ${hasAddr ? `<p class="v" style="font-weight:700;font-size:16px">${esc(d.address || d.city)}</p>${d.address && d.city ? `<p class="muted">${esc(d.city)}</p>` : ''}` : '<p class="muted">Pas encore d’adresse.</p>'}
+      ${hasAddr ? `<p class="v" style="font-weight:600;font-size:16px">${esc(d.address || d.city)}</p>${d.address && d.city ? `<p class="muted">${esc(d.city)}</p>` : ''}` : '<p class="muted">Pas encore d’adresse.</p>'}
       <div class="addr-actions">
         ${directionsButton(r, { cls: 'btn btn-primary sm', size: 17 })}
         ${hasAddr ? `<button type="button" class="btn btn-soft sm" data-act="copy-address">${icon('copy', { size: 17 })}Copier l’adresse</button>` : ''}

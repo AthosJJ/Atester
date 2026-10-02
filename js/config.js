@@ -1,7 +1,7 @@
 /* Configuration : catégories, sous-catégories par défaut, libellés, palettes.
    APP_VERSION doit suivre CACHE_VERSION de sw.js (a-tester-vX.Y.Z). */
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.4.0';
 export const APP_ID = 'a-tester';
 export const SCHEMA_VERSION = 1;
 

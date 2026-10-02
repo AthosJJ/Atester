@@ -3,7 +3,8 @@
 
 :root {
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-round: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Titres : la police de l'iPhone (SF Pro), non arrondie ; graisses 700 au plus. */
+  --font-title: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /* Palette « Encre » : boutons pleins encre (texte crème, 14:1), touches de
      corail pour l'accent ; --accent-ink sert au texte d'accent sur fond clair (5,4:1). */
@@ -15,27 +16,28 @@
   --accent-soft-2: rgba(232, 132, 106, 0.26);
   --accent-grad: linear-gradient(150deg, #463B35 0%, #2A2420 55%, #1C1714 100%);
 
-  --bg: #FAF6F1;
-  --bg-2: #F1EAE2;
-  --bg-3: #E8DFD5;
+  /* Fond gris clair façon iOS (plus de crème) ; gris, filets et ombres neutres. */
+  --bg: #F2F2F7;
+  --bg-2: #E5E5EA;
+  --bg-3: #DADADF;
   --card: #FFFFFF;
-  --card-2: #FFFBF7;
+  --card-2: #FAFAFC;
   --ink: #221A14;
   --ink-2: #4A4038;
   --muted: #6F675E;
   --faint: #A69C92;
-  --line: rgba(70, 45, 20, 0.10);
-  --line-2: rgba(70, 45, 20, 0.16);
-  --glass: rgba(255, 251, 247, 0.80);
-  --glass-strong: rgba(255, 251, 247, 0.92);
-  --scrim: rgba(30, 18, 10, 0.40);
+  --line: rgba(60, 60, 67, 0.12);
+  --line-2: rgba(60, 60, 67, 0.18);
+  --glass: rgba(250, 250, 252, 0.80);
+  --glass-strong: rgba(250, 250, 252, 0.92);
+  --scrim: rgba(0, 0, 0, 0.35);
   --photo-dim: rgba(0, 0, 0, 0.48);      /* hors du cercle de recadrage */
   --photo-ring: rgba(255, 255, 255, 0.92);
   --on-color: #FFFFFF;                    /* texte et liseré sur une pastille colorée */
 
   /* Carte : épingles, groupes, position */
   --pin-ring: #FFFFFF;
-  --pin-shadow: 0 3px 10px rgba(30, 20, 10, 0.22);
+  --pin-shadow: 0 3px 10px rgba(0, 0, 0, 0.20);
   --pin-lift: 0 6px 18px rgba(0, 0, 0, 0.35);
   --cluster-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
   --me: #2F80ED;
@@ -54,9 +56,10 @@
   --fav: #F2A33A;
   --info: #3A7BD5;
 
-  --shadow-1: 0 1px 2px rgba(70, 45, 20, 0.06), 0 4px 14px rgba(70, 45, 20, 0.06);
-  --shadow-2: 0 2px 6px rgba(70, 45, 20, 0.08), 0 12px 30px rgba(70, 45, 20, 0.12);
-  --shadow-3: 0 10px 24px rgba(70, 45, 20, 0.14), 0 24px 60px rgba(70, 45, 20, 0.18);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.05);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.07), 0 12px 30px rgba(0, 0, 0, 0.10);
+  --shadow-3: 0 10px 24px rgba(0, 0, 0, 0.12), 0 24px 60px rgba(0, 0, 0, 0.16);
+  --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.06), 0 3px 8px rgba(0, 0, 0, 0.05);
   --shadow-accent: 0 8px 22px rgba(30, 24, 20, 0.28), 0 2px 6px rgba(30, 24, 20, 0.18);
   --ring: 0 0 0 3px rgba(232, 132, 106, 0.45);
 
@@ -126,6 +129,7 @@
     --star: #F5B04C;
 
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 30px rgba(0, 0, 0, 0.35);
     --shadow-3: 0 16px 50px rgba(0, 0, 0, 0.6);
     --shadow-accent: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -171,6 +175,7 @@
   --star: #F5B04C;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 30px rgba(0, 0, 0, 0.35);
   --shadow-3: 0 16px 50px rgba(0, 0, 0, 0.6);
   --shadow-accent: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);

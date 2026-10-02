@@ -84,7 +84,7 @@ function render() {
     </section>
 
     <section class="sgroup">
-      <h2 class="sgroup-title">Films & séries — TMDB</h2>
+      <h2 class="sgroup-title">Films & séries (TMDB)</h2>
       <div class="scard" style="padding:16px">
         <label class="field" style="margin-bottom:12px">
           <span class="field-label"><span>Clé API TMDB</span>${status === 'ok' ? '<span class="opt ok-text">valide</span>' : status === 'invalid' ? '<span class="opt error-text">refusée</span>' : ''}</span>
@@ -130,7 +130,7 @@ function render() {
       <div class="scard">
         ${demo
           ? row({ act: 'demo-off', ico: 'trash-2', color: '#8A8F98', title: 'Retirer les exemples', sub: 'Tes propres recommandations ne sont pas touchées' })
-          : row({ act: 'demo-on', ico: 'sparkles', color: '#9B5DE5', title: 'Charger des exemples', sub: '4 personnes et 15 recommandations, retirables en un geste' })}
+          : row({ act: 'demo-on', ico: 'sparkles', color: '#9B5DE5', title: 'Charger des exemples', sub: '4 personnes et 15 recommandations, que tu peux retirer ensuite' })}
       </div>
     </section>
 
@@ -145,7 +145,7 @@ function render() {
     <section class="sgroup">
       <h2 class="sgroup-title">À propos</h2>
       <div class="scard about">
-        <p><b style="color:var(--ink)">À tester</b> · version ${APP_VERSION}. Tes recommandations, avec la personne qui te les a faites. 100 % local : pas de compte, pas de serveur.</p>
+        <p><b style="color:var(--ink)">À tester</b> · version ${APP_VERSION}. Les recommandations qu’on te fait, avec la personne qui te les a faites. Tes données restent sur ce téléphone et ne sont envoyées nulle part.</p>
         <p>Sur iPhone, iOS peut dans certains cas effacer les données d’un site web ou d’une app web peu utilisée. <b>L’export JSON est ta vraie sauvegarde</b> : pense à en faire un de temps en temps.</p>
         <p>Carte : données <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, fonds de carte <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> (<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a>), affichée avec Leaflet et MapLibre. Recherche de lieux : Photon (komoot), données OpenStreetMap.</p>
         <p>Films et séries : <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. Plateformes de streaming : JustWatch.</p>
@@ -330,7 +330,7 @@ async function doImport(file) {
     const parts = [`${res.added} recommandation${res.added > 1 ? 's' : ''} importée${res.added > 1 ? 's' : ''}`];
     if (res.updated) parts.push(`${res.updated} mise${res.updated > 1 ? 's' : ''} à jour`);
     parts.push(`${res.persons} personne${res.persons > 1 ? 's' : ''} ajoutée${res.persons > 1 ? 's' : ''}`);
-    await actionSheet({ title: 'Import terminé', message: parts.join(', ') + '.', actions: [], cancel: 'Parfait' });
+    await actionSheet({ title: 'Import terminé', message: parts.join(', ') + '.', actions: [], cancel: 'OK' });
     render();
   } catch (err) {
     toast('Import interrompu : ' + err.message, { icon: 'triangle-alert' });

@@ -145,9 +145,9 @@ function renderIcon(size, scale = 1) {
   return encodePNG(size, size, rgb);
 }
 
-/* Écran de lancement : fond crème, icône arrondie au centre. */
+/* Écran de lancement : fond gris clair de l'app, icône arrondie au centre. */
 function renderSplash(w, h) {
-  const BG = hex('#FAF6F1');
+  const BG = hex('#F2F2F7'); // fond de l'app (gris clair)
   const rgb = Buffer.alloc(w * h * 3);
   const size = Math.round(Math.min(w, h) * 0.24);
   const x0 = Math.round((w - size) / 2);

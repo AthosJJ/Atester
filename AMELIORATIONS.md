@@ -66,7 +66,7 @@ Le descriptif (`SPEC.md`) est suivi dans son intégralité. En l'analysant, plus
 - Modules ajoutés à la structure prévue : `js/utils.js`, `js/store/settings.js` (table `meta`), `js/services/{http,geo,map,demo}.js`, `js/views/{content-tab,empty,hints}.js`, `js/components/{reco-actions,swipe,celebrate}.js`, et `tools/` (icônes, contrôle du service worker).
 - Seul le cache de la coquille est purgé à chaque version : les tuiles et les affiches déjà vues restent disponibles hors ligne après une mise à jour.
 - `#/ajout` ouvre la feuille d'ajout par-dessus l'onglet de la catégorie (c'est un panneau, pas une page).
-- Grand titre à 30 px en police arrondie (SF Pro Rounded sur iPhone) au lieu de 28 px.
+- Grand titre à 30 px au lieu de 28 px (en police arrondie jusqu'à la 1.3, en police système depuis la 1.4, comme le prévoit le descriptif).
 
 ## 8. Version 1.1 : ajustements demandés après essai
 
@@ -105,3 +105,11 @@ Autres points de cette version :
 
 - **Barre d'onglets au lancement** : sous iOS 26, une web app installée démarre avec un viewport de mise en page raccourci de la hauteur de la barre d'état (innerHeight, 100dvh et les éléments fixés en bas sont 47 px trop hauts), jusqu'à la première interaction. Seul 100lvh garde la vraie hauteur : l'app compare un repère de 100lvh au repère « bottom: 0 » (uniquement dans la web app installée, en portrait, quand l'écart ressemble à une barre d'état) et redescend d'autant ce qui est fixé en bas. La mesure est refaite plusieurs fois après le lancement et le retour dans l'app, au premier toucher, puis chaque seconde : la compensation disparaît dès qu'iOS se corrige. La marge basse (`--sab`) est aussi plafonnée à 34 px dans la web app.
 - **Zoom à un doigt sur la carte, comme dans Plans** : toucher deux fois en gardant le doigt posé, puis glisser vers le haut pour zoomer, vers le bas pour dézoomer ; deux touchers sans glisser zooment d'un cran. Le geste suit le même chemin que le pincement de Leaflet (fluide, aligné sur les crans de zoom à la fin).
+
+## 11. Version 1.4 : moins d'« effet IA » (choix 1A, 5A et 9 de l'audit)
+
+La mise en page reste celle de la 1.3 ; seuls trois points changent.
+
+- **Police (1A)** : la police arrondie très grasse (SF Pro Rounded en 800) est remplacée par la police de l'iPhone (SF Pro), comme le prévoit le descriptif. Grands titres en gras (700), tout le reste de l'interface en semi-gras (600) au plus ; l'approche serrée des grands titres est relâchée. Jeton `--font-title` à la place de `--font-round`.
+- **Fond (5A)** : gris clair façon iOS (`#F2F2F7`) au lieu du crème, avec des gris de fond, des filets, des verres et des ombres neutres (plus de teinte brune). Le corail reste en petites touches, les boutons restent encre. `theme-color`, manifeste et écrans de lancement suivent. Le thème sombre ne change pas.
+- **Textes (9)** : plus de tirets longs ni de formules de slogan dans l'interface : « 15 exemples chargés. Tu peux les retirer dans les réglages. », « Films & séries (TMDB) », « que tu peux retirer ensuite », À propos sans « 100 % local : pas de compte, pas de serveur », « Tu peux choisir une app par défaut… » au lieu de « Astuce : », bouton « OK » au lieu de « Parfait », description du manifeste et de la page reformulée.

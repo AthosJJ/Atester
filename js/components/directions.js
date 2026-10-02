@@ -20,7 +20,7 @@ export function directionsButton(reco, { cls = 'btn btn-soft', size = 18 } = {})
 export function chooseDirections(reco) {
   return actionSheet({
     title: 'Itinéraire avec…',
-    message: 'Astuce : choisis une app par défaut dans Réglages › Carte et itinéraire.',
+    message: 'Tu peux choisir une app par défaut dans Réglages › Carte et itinéraire.',
     actions: NAV_APPS.map((a) => ({ label: a.label, icon: a.icon, value: a.key, href: directionsUrl(reco, a.key) }))
   });
 }

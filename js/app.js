@@ -58,7 +58,7 @@ function applyTheme(pref = lsGet('theme') || 'auto') {
   // La barre d'état suit la couleur de fond (un thème forcé l'emporte sur celui du système).
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     const forLight = (m.getAttribute('media') || '').includes('light');
-    const color = pref === 'auto' ? (forLight ? '#FAF6F1' : '#13110F') : (dark ? '#13110F' : '#FAF6F1');
+    const color = pref === 'auto' ? (forLight ? '#F2F2F7' : '#13110F') : (dark ? '#13110F' : '#F2F2F7');
     m.setAttribute('content', color);
   });
   refreshBaseLayers();
@@ -219,7 +219,7 @@ function openInstall() {
 function fatal(err) {
   const splash = $('#splash');
   splash.innerHTML = `<div style="max-width:320px;text-align:center;padding:24px">
-    <h2 style="font:800 22px/1.2 var(--font-round);margin-bottom:10px">Stockage indisponible</h2>
+    <h2 style="font:700 22px/1.2 var(--font-title);margin-bottom:10px">Stockage indisponible</h2>
     <p class="muted">L’app n’a pas pu ouvrir sa base locale (${String(err && err.message || err)}). En navigation privée, ouvre-la dans un onglet normal.</p></div>`;
 }
 
@@ -279,7 +279,7 @@ function wire() {
       }
       case 'add': openAdd({ category: t.dataset.cat || currentCategory() }); break;
       case 'demo':
-        loadDemo().then((n) => toast(`${n} exemples chargés — retirables dans les réglages`, { icon: 'sparkles' }));
+        loadDemo().then((n) => toast(`${n} exemples chargés. Tu peux les retirer dans les réglages.`, { icon: 'sparkles' }));
         break;
       case 'reset':
         if (current && CONTENT_TABS.includes(current.name)) resetFilters(current.name);
