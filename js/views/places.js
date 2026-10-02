@@ -16,7 +16,7 @@ import { getFilters, setFilters, results, resetFilters } from '../store/filters.
 import { recosOf, getReco } from '../store/recommendations.js';
 import { personsOf } from '../store/persons.js';
 import { subcat } from '../store/settings.js';
-import { loadLeaflet, attachBaseLayer, pinIcon, clusterIcon, userIcon } from '../services/map.js';
+import { loadLeaflet, attachBaseLayer, oneFingerZoom, pinIcon, clusterIcon, userIcon } from '../services/map.js';
 import { directionsButton } from '../components/directions.js';
 import { lastPosition, getPosition, geoErrorMessage } from '../services/geo.js';
 import { STATUS, CLUSTER_THRESHOLD, DEFAULT_MAP_VIEW, EMPTY, MAP_MAX_ZOOM } from '../config.js';
@@ -69,6 +69,7 @@ function initMap() {
     attachBaseLayer(L, map);
     map.setView([saved.lat, saved.lng], saved.zoom, { animate: false });
     mapEl.addEventListener('touchstart', () => { lastUserMove = Date.now(); }, { passive: true });
+    oneFingerZoom(L, map, { onStart: () => { lastUserMove = Date.now(); } });
     mapEl.addEventListener('wheel', () => { lastUserMove = Date.now(); }, { passive: true });
     map.on('dragstart', () => { lastUserMove = Date.now(); });
     map.on('moveend', () => {

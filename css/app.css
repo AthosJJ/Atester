@@ -27,8 +27,9 @@ body {
 
 html.lock, html.lock body { overflow: hidden; }
 
-/* Repère du bas de l'écran (js/services/viewport.js). */
+/* Repères du bas de l'écran et de la vraie hauteur (js/services/viewport.js). */
 .vv-probe { position: fixed; left: 0; bottom: 0; width: 0; height: 0; visibility: hidden; pointer-events: none; }
+.vv-probe-large { position: fixed; left: 0; top: 0; width: 0; height: 100lvh; visibility: hidden; pointer-events: none; }
 
 button, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }
 button { background: none; border: 0; cursor: pointer; touch-action: manipulation; }

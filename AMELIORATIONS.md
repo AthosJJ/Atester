@@ -100,3 +100,8 @@ Autres points de cette version :
 - Ajout de `vendor/maplibre/` (MapLibre GL JS 6.11, BSD-3, environ 1,2 Mo, téléchargé une fois à la mise à jour puis gardé hors ligne) et `vendor/maplibre-gl-leaflet/` (liaison Leaflet, ISC). Leaflet garde les épingles, les groupes, les gestes et l'aperçu.
 - Nouveau module `js/services/viewport.js` (clavier et viewport iOS), qui remplace la mesure du clavier faite dans `js/app.js`.
 - Caches du service worker : `a-tester-map` (styles, TileJSON, polices, icônes) et `a-tester-tiles-ofm` (tuiles OpenFreeMap et OSM du repli).
+
+## 10. Version 1.3 : barre d'onglets au lancement, zoom à un doigt
+
+- **Barre d'onglets au lancement** : sous iOS 26, une web app installée démarre avec un viewport de mise en page raccourci de la hauteur de la barre d'état (innerHeight, 100dvh et les éléments fixés en bas sont 47 px trop hauts), jusqu'à la première interaction. Seul 100lvh garde la vraie hauteur : l'app compare un repère de 100lvh au repère « bottom: 0 » (uniquement dans la web app installée, en portrait, quand l'écart ressemble à une barre d'état) et redescend d'autant ce qui est fixé en bas. La mesure est refaite plusieurs fois après le lancement et le retour dans l'app, au premier toucher, puis chaque seconde : la compensation disparaît dès qu'iOS se corrige. La marge basse (`--sab`) est aussi plafonnée à 34 px dans la web app.
+- **Zoom à un doigt sur la carte, comme dans Plans** : toucher deux fois en gardant le doigt posé, puis glisser vers le haut pour zoomer, vers le bas pour dézoomer ; deux touchers sans glisser zooment d'un cran. Le geste suit le même chemin que le pincement de Leaflet (fluide, aligné sur les crans de zoom à la fin).

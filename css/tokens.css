@@ -83,6 +83,12 @@
   color-scheme: light;
 }
 
+/* Web app installée : aucune marge basse ne dépasse celle de la barre d'accueil
+   (34 px). Au lancement, iOS 26 en annonce parfois davantage. */
+@media (display-mode: standalone) {
+  :root { --sab: min(env(safe-area-inset-bottom, 0px), 34px); }
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --accent: #F0937A;

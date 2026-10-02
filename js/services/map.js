@@ -186,6 +186,95 @@ export function refreshBaseLayers({ retry = false } = {}) {
 on('meta', (k) => { if (k === 'prefs') refreshBaseLayers(); });
 window.addEventListener('online', () => refreshBaseLayers({ retry: true }));
 
+/* ——— Zoom à un doigt, comme dans Plans ———
+   Toucher deux fois en gardant le doigt posé, puis glisser vers le haut pour
+   zoomer, vers le bas pour dézoomer ; deux touchers sans glisser zooment d'un
+   cran. Les événements sont pris au vol sur le parent de la carte, avant
+   Leaflet, et le zoom suit le même chemin que le pincement. */
+const TAP_DELAY = 320;     // ms entre les deux touchers
+const TAP_SLOP = 32;       // px d'écart toléré entre les deux touchers
+const PX_PER_LEVEL = 110;  // glissement pour un niveau de zoom
+
+export function oneFingerZoom(L, map, { onStart } = {}) {
+  const el = map.getContainer();
+  const host = el.parentElement;
+  let down = null;   // toucher en cours (candidat au premier toucher)
+  let tap = null;    // dernier toucher bref : { t, x, y }
+  let g = null;      // geste de zoom en cours
+  let raf = 0;
+
+  const centerFor = (z) => map.unproject(map.project(g.latlng, z).subtract(g.delta), z);
+
+  const finish = () => {
+    cancelAnimationFrame(raf);
+    const cur = g;
+    g = null;
+    if (!cur.moved) {
+      map.setZoomAround(cur.pt, Math.min(map.getZoom() + 1, map.getMaxZoom()));
+      return;
+    }
+    const z = map._limitZoom(cur.z);
+    const center = map.unproject(map.project(cur.latlng, z).subtract(cur.delta), z);
+    if (map.options.zoomAnimation) map._animateZoom(center, z, true, map.options.zoomSnap);
+    else map._resetView(center, z);
+  };
+
+  host.addEventListener('touchstart', (e) => {
+    if (g) { if (e.touches.length > 1) finish(); return; }
+    if (e.touches.length !== 1 || !el.contains(e.target)) { down = null; tap = null; return; }
+    const t = e.touches[0];
+    const now = Date.now();
+    if (tap && now - tap.t < TAP_DELAY && Math.hypot(t.clientX - tap.x, t.clientY - tap.y) < TAP_SLOP) {
+      // Second toucher : Leaflet ne le voit pas (pas de déplacement ni de clic).
+      e.preventDefault();
+      e.stopPropagation();
+      const r = el.getBoundingClientRect();
+      const pt = L.point(t.clientX - r.left, t.clientY - r.top);
+      map._stop();
+      g = { y0: t.clientY, z0: map.getZoom(), z: map.getZoom(), pt, latlng: map.containerPointToLatLng(pt), delta: pt.subtract(map.getSize().divideBy(2)), moved: false };
+      tap = null;
+      down = null;
+      onStart?.();
+      return;
+    }
+    down = { t: now, x: t.clientX, y: t.clientY, moved: false };
+  }, { capture: true, passive: false });
+
+  host.addEventListener('touchmove', (e) => {
+    if (!g) {
+      if (down && e.touches[0] && Math.hypot(e.touches[0].clientX - down.x, e.touches[0].clientY - down.y) > 10) down.moved = true;
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    const dy = e.touches[0].clientY - g.y0;
+    if (!g.moved && Math.abs(dy) < 6) return;
+    if (!g.moved) { g.moved = true; map._moveStart(true, false); }
+    // Vers le haut : zoom avant ; vers le bas : zoom arrière.
+    g.z = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), g.z0 - dy / PX_PER_LEVEL));
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => { if (g) map._move(centerFor(g.z), g.z, { pinch: true, round: false }); });
+  }, { capture: true, passive: false });
+
+  const end = (e) => {
+    if (g) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.touches || !e.touches.length) finish();
+      return;
+    }
+    if (down && !down.moved && Date.now() - down.t < 250) {
+      const t = e.changedTouches?.[0];
+      tap = t ? { t: Date.now(), x: t.clientX, y: t.clientY } : null;
+    } else {
+      tap = null;
+    }
+    down = null;
+  };
+  host.addEventListener('touchend', end, { capture: true, passive: false });
+  host.addEventListener('touchcancel', end, { capture: true, passive: false });
+}
+
 const STAR = '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path fill="currentColor" d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg>';
 
 /* Épingle : pastille ronde de la couleur de la sous-catégorie, icône contrastée. */
