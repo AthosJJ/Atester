@@ -111,12 +111,6 @@ svg.i { flex: none; display: block; }
 .login-msg:empty { display: none; }
 .login .btn .spin { width: 16px; height: 16px; border-color: color-mix(in srgb, currentColor 30%, transparent); border-top-color: currentColor; }
 .login-forgot { display: block; margin: 12px auto 0; font-size: 15px; }
-.login-foot {
-  display: flex; gap: 8px; align-items: flex-start;
-  margin: 28px 8px 0;
-  font-size: 13px; line-height: 1.45; color: var(--muted);
-}
-.login-foot .i { flex: none; margin-top: 1px; }
 
 /* ════════ Vues ════════ */
 #app { max-width: var(--maxw); margin: 0 auto; }

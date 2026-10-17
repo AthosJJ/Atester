@@ -26,7 +26,6 @@ export async function cropPhoto(file) {
     let result = null;
     const s = openSheet({
       title: 'Recadrer la photo',
-      sub: 'Fais glisser pour placer le visage dans le cercle, pince pour zoomer.',
       body: `
         <div class="crop no-drag" data-r="crop" tabindex="0" aria-label="Recadrage : flèches pour déplacer, plus et moins pour zoomer">
           <span class="crop-ring" aria-hidden="true"></span>

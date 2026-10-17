@@ -24,7 +24,7 @@ const NAMES = [
   'history', 'badge-check', 'party-popper', 'wand-sparkles', 'palette', 'tag', 'loader-circle',
   'file-json', 'cloud-off', 'maximize', 'compass', 'circle-dot', 'message-circle',
   // Compte et synchronisation
-  'log-out', 'mail', 'lock-keyhole', 'smartphone', 'cloud-upload',
+  'log-out', 'mail', 'cloud-upload',
   // Sous-catégories par défaut
   'utensils', 'wine', 'coffee', 'croissant', 'landmark', 'trees', 'shopping-bag', 'bed',
   'film', 'tv', 'video', 'scroll-text', 'flask-conical', 'briefcase', 'laugh', 'trophy', 'sprout', 'mic',

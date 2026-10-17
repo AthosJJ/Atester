@@ -119,7 +119,6 @@ function build() {
         <button type="submit" class="btn btn-primary block" data-r="submit">Se connecter</button>
         <button type="button" class="text-btn login-forgot" data-act="forgot">Mot de passe oublié ?</button>
       </form>
-      <p class="login-foot">${icon('lock-keyhole', { size: 15 })}Tes recommandations sont enregistrées dans ton compte et restent disponibles hors connexion.</p>
     </div>`;
   document.body.appendChild(el);
 
@@ -153,10 +152,10 @@ export function showLogin() {
   legacySummary().then((sum) => {
     if (!sum || !el) return;
     const note = $l('[data-r="legacy"]');
-    const what = sum.recos > 1 ? `Les ${sum.recos} recommandations déjà enregistrées sur cet appareil y restent`
-      : sum.recos === 1 ? 'La recommandation déjà enregistrée sur cet appareil y reste'
-        : 'Les données déjà enregistrées sur cet appareil y restent';
-    note.textContent = `Nouveau : un compte pour retrouver tes recommandations sur tous tes appareils. ${what} : tu pourras les importer dans ton compte depuis les réglages.`;
+    const what = sum.recos > 1 ? `Tes ${sum.recos} recommandations restent sur cet appareil`
+      : sum.recos === 1 ? 'Ta recommandation reste sur cet appareil'
+        : 'Tes données restent sur cet appareil';
+    note.textContent = `${what} : tu pourras ${sum.recos === 1 ? 'l’importer' : 'les importer'} après la connexion.`;
     note.hidden = false;
   });
 }

@@ -6,7 +6,7 @@ Cahier des charges : [SPEC.md](SPEC.md) · Améliorations ergonomiques intégré
 
 ## Fonctionnalités
 
-- **Ajout rapide en un écran** (bouton + central) : catégorie pré-sélectionnée, clavier ouvert sur « Quoi », suggestions dès 3 caractères (lieux via Photon/OpenStreetMap, films et séries via TMDB, podcasts via iTunes), « Je suis devant » (position GPS et adresse), personnes récentes en un tap, sous-catégorie devinée, détection des doublons (« Déjà recommandé par Paul — ajouter Marie ? »), brouillon conservé.
+- **Ajout rapide en un écran** (bouton + central) : catégorie pré-sélectionnée, le clavier s'ouvre quand on touche « Quoi », suggestions dès 3 caractères (lieux via Photon/OpenStreetMap, films et séries via TMDB, podcasts via iTunes), « Je suis devant » (position GPS et adresse), personnes récentes en un tap, sous-catégorie devinée, détection des doublons (« Déjà recommandé par Paul — ajouter Marie ? »), brouillon conservé.
 - **Lieux** : carte sur fond vectoriel OpenFreeMap, sans clé ni compte (épingles colorées par sous-catégorie, groupes au-delà de 30, recadrage automatique, aperçu flottant, « Me localiser »), repli automatique sur les tuiles OpenStreetMap, zoom à un doigt comme dans Plans (toucher deux fois puis glisser), ou liste avec distances, « Zone de la carte ». Itinéraire au choix dans Plans, Google Maps ou Waze, ou directement dans l'app choisie en Réglages.
 - **Films et séries** : grille d'affiches 2:3, plateformes en France (JustWatch via TMDB), « Actualiser les plateformes ».
 - **Podcasts** : pochettes, épisode précis, « Ouvrir dans Podcasts ».

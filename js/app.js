@@ -303,7 +303,7 @@ function wire() {
       }
       case 'add': openAdd({ category: t.dataset.cat || currentCategory() }); break;
       case 'demo':
-        loadDemo().then((n) => toast(`${n} exemples chargés. Tu peux les retirer dans les réglages.`, { icon: 'sparkles' }));
+        loadDemo().then((n) => toast(`${n} exemples chargés`, { icon: 'sparkles' }));
         break;
       case 'reset':
         if (current && CONTENT_TABS.includes(current.name)) resetFilters(current.name);

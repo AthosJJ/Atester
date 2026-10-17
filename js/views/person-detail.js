@@ -81,7 +81,6 @@ function render() {
       <a class="ract" href="#/lieux?vue=carte&p=${encodeURIComponent(p.id)}" ${s.byCat.place ? '' : 'aria-disabled="true" style="opacity:.45;pointer-events:none"'}>
         <span class="rbtn">${icon('map-pin', { size: 22 })}</span>Ses lieux</a>
       <button type="button" class="ract primary" data-act="add" aria-label="Ajouter une recommandation de ${esc(p.name)}"><span class="rbtn">${icon('plus', { size: 24, stroke: 2.6 })}</span>Ajouter</button>
-      <button type="button" class="ract" data-act="avatar"><span class="rbtn">${icon('camera', { size: 22 })}</span>Photo</button>
       <button type="button" class="ract" data-act="more"><span class="rbtn">${icon('ellipsis', { size: 22 })}</span>Plus</button>
     </div>
     ${all.length ? `

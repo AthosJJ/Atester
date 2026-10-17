@@ -1,8 +1,8 @@
 /* Réglages : compte (adresse, déconnexion), import des données de l'ancienne
-   version, sauvegarde JSON facultative, sous-catégories (ajout, renommage,
-   couleur, icône, ordre par glisser), recherche de films (TMDB), thème, carte
-   et itinéraire, exemples, mise à jour, à propos et attributions, zone
-   dangereuse (double confirmation). */
+   version, sauvegarde JSON, sous-catégories (ajout, renommage, couleur, icône,
+   ordre par glisser), thème, carte et itinéraire, exemples, mise à jour,
+   attributions, zone dangereuse (double confirmation). Pas de texte
+   d'explication : les libellés suffisent. */
 import { icon } from '../components/icons.js';
 import { subBubble } from '../components/reco-card.js';
 import { openSheet, actionSheet, confirmSheet } from '../components/bottom-sheet.js';
@@ -14,14 +14,13 @@ import { allRecos, reassignSubcat } from '../store/recommendations.js';
 import { getFilters, setFilters } from '../store/filters.js';
 import { flushed } from '../store/cloud.js';
 import {
-  exportBackup, lastBackupAt, parseBackup, importMerge, importLocal, wipeAll, ImportError
+  exportBackup, parseBackup, importMerge, importLocal, wipeAll, ImportError
 } from '../services/backup.js';
-import { keyStatus, unavailableMessage } from '../services/tmdb.js';
 import { currentUser } from '../services/account.js';
 import { legacySummary, deleteLegacy } from '../services/legacy.js';
 import { loadDemo, removeDemo, hasDemo } from '../services/demo.js';
 import { APP_VERSION, CATEGORIES, CATEGORY_KEYS, TAB_OF, SUBCAT_COLORS, PICKER_ICONS, MAP_STYLES, NAV_APPS } from '../config.js';
-import { esc, inkOn, longDate, clamp, haptic, isStandalone, lsGet, lsSet, plural, IS_IOS } from '../utils.js';
+import { esc, inkOn, longDate, clamp, haptic, isStandalone, lsGet, lsSet, plural } from '../utils.js';
 import { back } from '../router.js';
 
 export const settingsHooks = { setTheme: null, getTheme: () => 'auto', checkUpdate: null, openInstall: null, logout: null };
@@ -47,15 +46,8 @@ function subList() {
       <button type="button" class="grow" data-act="edit-sub" data-key="${esc(s.key)}" style="text-align:left;font-weight:600;min-height:40px">${esc(s.label)}</button>
       ${s.key !== 'other'
         ? `<span class="grip" aria-label="Réordonner ${esc(s.label)}" role="button">${icon('grip-vertical', { size: 20 })}</span>`
-        : '<span class="val" style="font-size:13px">toujours en dernier</span>'}
+        : ''}
     </div>`).join('');
-}
-
-function tmdbStatus() {
-  const status = keyStatus();
-  if (status === 'ok') return 'Disponible : affiches, genres et plateformes sont ajoutés automatiquement.';
-  if (status === null) return navigator.onLine ? 'Vérification en cours…' : 'Hors ligne : la disponibilité sera vérifiée au retour du réseau.';
-  return esc(unavailableMessage());
 }
 
 function legacySection() {
@@ -67,15 +59,13 @@ function legacySection() {
     <section class="sgroup">
       <h2 class="sgroup-title">Ancienne version sur cet appareil</h2>
       <div class="scard">
-        ${row({ act: 'import-local', ico: 'cloud-upload', color: '#2F8FD8', title: 'Importer mes données locales', sub: `${esc(what)} enregistrées sur cet appareil${imported ? ` · déjà importées le ${esc(longDate(imported))}` : ''}`, val: busy === 'import-local' ? '<span class="spin" aria-label="Import en cours"></span>' : '', chevron: busy !== 'import-local' })}
-        ${imported ? row({ act: 'clear-local', ico: 'trash-2', color: '#8A8F98', title: 'Vider l’ancien stockage', sub: 'Tes données sont dans ton compte : cet appareil n’a plus besoin de cette copie' }) : ''}
+        ${row({ act: 'import-local', ico: 'cloud-upload', color: '#2F8FD8', title: 'Importer mes données locales', sub: `${esc(what)}${imported ? ` · importées le ${esc(longDate(imported))}` : ''}`, val: busy === 'import-local' ? '<span class="spin" aria-label="Import en cours"></span>' : '', chevron: busy !== 'import-local' })}
+        ${imported ? row({ act: 'clear-local', ico: 'trash-2', color: '#8A8F98', title: 'Vider l’ancien stockage' }) : ''}
       </div>
-      <p class="hint">L’import ajoute à ton compte ce qui n’y est pas encore, sans doublons : tu peux le relancer sans risque.</p>
     </section>`;
 }
 
 function render() {
-  const last = lastBackupAt();
   const theme = settingsHooks.getTheme();
   const demo = hasDemo();
   const user = currentUser();
@@ -90,7 +80,7 @@ function render() {
     <section class="sgroup">
       <h2 class="sgroup-title">Compte</h2>
       <div class="scard">
-        ${row({ tag: 'div', ico: 'mail', color: '#5B6B7C', title: user?.email || 'Compte', sub: `${plural(total, ['recommandation', 'recommandations'])} dans ton compte, sur tous tes appareils` })}
+        ${row({ tag: 'div', ico: 'mail', color: '#5B6B7C', title: user?.email || 'Compte', sub: plural(total, ['recommandation', 'recommandations']) })}
         ${row({ act: 'logout', ico: 'log-out', color: '#D64532', title: 'Se déconnecter', danger: true, val: busy === 'logout' ? '<span class="spin" aria-label="Déconnexion"></span>' : '' })}
       </div>
     </section>
@@ -98,12 +88,11 @@ function render() {
     ${legacySection()}
 
     <section class="sgroup">
-      <h2 class="sgroup-title">Sauvegarde facultative</h2>
+      <h2 class="sgroup-title">Sauvegarde</h2>
       <div class="scard">
-        ${row({ act: 'export', ico: 'download', color: '#2E8B57', title: 'Exporter une sauvegarde', sub: last ? `Dernière : ${esc(longDate(last))}` : 'Fichier JSON avec toutes tes données', chevron: true })}
-        ${row({ act: 'import', ico: 'upload', color: '#3A7BD5', title: 'Importer un fichier JSON', sub: 'Ajoute ce qui manque, sans doublons', val: busy === 'import' ? '<span class="spin" aria-label="Import en cours"></span>' : '', chevron: busy !== 'import' })}
+        ${row({ act: 'export', ico: 'download', color: '#2E8B57', title: 'Exporter', chevron: true })}
+        ${row({ act: 'import', ico: 'upload', color: '#3A7BD5', title: 'Importer', val: busy === 'import' ? '<span class="spin" aria-label="Import en cours"></span>' : '', chevron: busy !== 'import' })}
       </div>
-      <p class="hint">Tes données sont enregistrées dans ton compte. L’export est une copie de sécurité, à garder où tu veux.${IS_IOS ? ' Sur iPhone, choisis « Enregistrer dans Fichiers » ou iCloud Drive.' : ''}</p>
       <input type="file" accept="application/json,.json" data-r="file" hidden>
     </section>
 
@@ -118,13 +107,6 @@ function render() {
     </section>
 
     <section class="sgroup">
-      <h2 class="sgroup-title">Films & séries</h2>
-      <div class="scard">
-        ${row({ tag: 'div', ico: 'clapperboard', color: '#9B5DE5', title: 'Recherche de films et séries', sub: tmdbStatus() })}
-      </div>
-    </section>
-
-    <section class="sgroup">
       <h2 class="sgroup-title">Apparence</h2>
       <div class="seg" role="group" aria-label="Thème" style="--n:3;--i:${['auto', 'light', 'dark'].indexOf(theme)}">
         <span class="seg-thumb" aria-hidden="true"></span>
@@ -136,7 +118,7 @@ function render() {
 
     <section class="sgroup">
       <h2 class="sgroup-title">Carte et itinéraire</h2>
-      <p class="hint" style="margin:0 8px 8px">Style de la carte (elle passe en sombre avec le thème sombre)</p>
+      <p class="hint" style="margin:0 8px 8px">Style de la carte</p>
       <div class="seg" role="group" aria-label="Style de la carte" style="--n:2;--i:${mapStyle === 'positron' ? 1 : 0}">
         <span class="seg-thumb" aria-hidden="true"></span>
         <button type="button" data-mapstyle="liberty" aria-pressed="${mapStyle !== 'positron'}">${icon('palette', { size: 16 })}${esc(MAP_STYLES.liberty.label)}</button>
@@ -147,15 +129,14 @@ function render() {
         <span class="seg-thumb" aria-hidden="true"></span>
         ${navChoices.map((c) => `<button type="button" data-navapp="${c.key}" aria-pressed="${c.key === navApp}">${esc(c.short)}</button>`).join('')}
       </div>
-      <p class="hint">${navApp === 'ask' ? 'Le bouton Itinéraire te demandera Plans, Google Maps ou Waze.' : `Le bouton Itinéraire ouvre directement ${esc(NAV_APPS.find((a) => a.key === navApp).label)}.`}</p>
     </section>
 
     <section class="sgroup">
       <h2 class="sgroup-title">Exemples</h2>
       <div class="scard">
         ${demo
-          ? row({ act: 'demo-off', ico: 'trash-2', color: '#8A8F98', title: 'Retirer les exemples', sub: 'Tes propres recommandations ne sont pas touchées' })
-          : row({ act: 'demo-on', ico: 'sparkles', color: '#9B5DE5', title: 'Charger des exemples', sub: '4 personnes et 15 recommandations, que tu peux retirer ensuite' })}
+          ? row({ act: 'demo-off', ico: 'trash-2', color: '#8A8F98', title: 'Retirer les exemples' })
+          : row({ act: 'demo-on', ico: 'sparkles', color: '#9B5DE5', title: 'Charger des exemples' })}
       </div>
     </section>
 
@@ -170,17 +151,16 @@ function render() {
     <section class="sgroup">
       <h2 class="sgroup-title">À propos</h2>
       <div class="scard about">
-        <p><b style="color:var(--ink)">À tester</b> · version ${APP_VERSION}. Les recommandations qu’on te fait, avec la personne qui te les a faites. Tes données sont enregistrées dans ton compte (Firebase de Google, serveurs en Europe), visibles de toi seul, et restent disponibles hors connexion.</p>
-        <p>Carte : données <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, fonds de carte <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> (<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a>), affichée avec Leaflet et MapLibre. Recherche de lieux : Photon (komoot), données OpenStreetMap.</p>
-        <p>Films et séries : <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. <span lang="en">This product uses the TMDB API but is not endorsed or certified by TMDB.</span> Plateformes de streaming : JustWatch.</p>
-        <p>Podcasts : API iTunes Search d’Apple. Icônes : Lucide (ISC). Comptes et données : Firebase.</p>
+        <p>Carte : <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>, <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a>, Photon.</p>
+        <p>Films et séries : <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>, JustWatch. Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB.</p>
+        <p>Podcasts : Apple. Icônes : Lucide.</p>
       </div>
     </section>
 
     <section class="sgroup">
       <h2 class="sgroup-title">Zone dangereuse</h2>
       <div class="scard">
-        ${row({ act: 'wipe', ico: 'triangle-alert', color: '#D64532', title: 'Tout effacer', sub: 'Recommandations et personnes de ton compte, sur tous tes appareils', danger: true })}
+        ${row({ act: 'wipe', ico: 'triangle-alert', color: '#D64532', title: 'Tout effacer', danger: true })}
       </div>
     </section>`;
   bindReorder(wrap.querySelector('[data-r="sublist"]'));
@@ -371,7 +351,7 @@ async function doImport(file) {
   const p = data.persons.filter((x) => !x.isMe).length;
   const ok = await confirmSheet({
     title: `Importer ${plural(n, ['recommandation', 'recommandations'])} et ${plural(p, ['personne', 'personnes'])} ?`,
-    message: `Sauvegarde du ${longDate(data.exportedAt)}. Ce qui est déjà dans ton compte n’est pas dupliqué.`,
+    message: `Sauvegarde du ${longDate(data.exportedAt)}.`,
     confirm: 'Importer', icon: 'upload'
   });
   if (!ok) return;
@@ -380,10 +360,20 @@ async function doImport(file) {
     const message = res.pending
       ? `${importReport(res)} L’envoi vers ton compte n’est pas terminé : il continue en arrière-plan.`
       : res.verified ? `${importReport(res)} Tout est bien dans ton compte.` : `${importReport(res)} ${plural(res.missing, ['élément manque', 'éléments manquent'])} sur le serveur : relance l’import un peu plus tard.`;
-    await actionSheet({ title: 'Import terminé', message, actions: [], cancel: 'OK' });
+    const v = await actionSheet({ title: 'Import terminé', message, actions: demoAction(), cancel: 'OK' });
+    if (v === 'demo') await dropDemo();
   } catch (err) {
     await importFailed(err);
   }
+}
+
+/* Après un import, les exemples encore présents se retirent en un geste. */
+const demoAction = () => (hasDemo() ? [{ label: 'Retirer les exemples', value: 'demo', icon: 'sparkles' }] : []);
+
+async function dropDemo() {
+  const n = await removeDemo();
+  toast(`${plural(n, ['exemple retiré', 'exemples retirés'])}`, { icon: 'trash-2' });
+  render();
 }
 
 /* Ancien stockage → compte, puis vérification sur le serveur ; une fois
@@ -403,13 +393,14 @@ async function doImportLocal() {
     await actionSheet({ title: 'Import à vérifier', message, actions: [], cancel: 'OK' });
     return;
   }
-  const clear = await actionSheet({
+  const next = await actionSheet({
     title: 'Import terminé et vérifié',
-    message: `${importReport(res)} Tout est bien dans ton compte. Tu peux maintenant vider l’ancien stockage de cet appareil.`,
-    actions: [{ label: 'Vider l’ancien stockage', value: 'clear', danger: true, icon: 'trash-2' }],
+    message: `${importReport(res)} Tout est bien dans ton compte.`,
+    actions: [{ label: 'Vider l’ancien stockage', value: 'clear', danger: true, icon: 'trash-2' }, ...demoAction()],
     cancel: 'Plus tard'
   });
-  if (clear === 'clear') await clearLocal({ confirmed: true });
+  if (next === 'clear') await clearLocal({ confirmed: true });
+  else if (next === 'demo') await dropDemo();
   else render();
 }
 
@@ -514,12 +505,7 @@ export default {
           render();
           break;
         }
-        case 'demo-off': {
-          const n = await removeDemo();
-          toast(`${n} exemples retirés`, { icon: 'trash-2' });
-          render();
-          break;
-        }
+        case 'demo-off': await dropDemo(); break;
         case 'install': settingsHooks.openInstall?.(); break;
         case 'update': settingsHooks.checkUpdate?.(); break;
         case 'wipe': wipe(); break;

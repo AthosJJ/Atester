@@ -49,9 +49,9 @@ export async function ensureKey() {
 
 /* Message à afficher quand la recherche de films est indisponible. */
 export function unavailableMessage() {
-  if (status === 'invalid') return 'TMDB refuse la clé configurée : la recherche de films est désactivée. Tu peux ajouter le titre à la main.';
-  if (status === 'missing') return 'La recherche de films n’est pas encore disponible. Tu peux ajouter le titre à la main.';
-  return 'La recherche de films est indisponible pour l’instant. Tu peux ajouter le titre à la main.';
+  if (status === 'invalid') return 'Recherche de films indisponible : clé TMDB refusée.';
+  if (status === 'missing') return 'Recherche de films pas encore disponible.';
+  return 'Recherche de films indisponible pour l’instant.';
 }
 
 const isBearer = (k) => k.startsWith('eyJ') && k.length > 60;

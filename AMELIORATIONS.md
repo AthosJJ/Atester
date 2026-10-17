@@ -139,3 +139,11 @@ Chacun se connecte avec son e-mail et un mot de passe et retrouve ses propres do
 - Quotas du forfait Spark pour tout le projet : 50 000 lectures et 20 000 écritures par jour, 1 Go stocké. Une ouverture plus de 30 minutes après la précédente relit toutes les fiches du compte : de quoi servir quelques dizaines d'utilisateurs actifs.
 - La clé TMDB est lisible par tout compte connecté, et n'importe qui peut créer un compte : sans serveur, une clé utilisée depuis le navigateur reste visible. Le risque se limite à un abus de la clé gratuite, à régénérer le cas échéant.
 - Logo TMDB : la mention obligatoire est dans « À propos » ; le logo officiel sera ajouté dès que le fichier sera disponible (téléchargement bloqué dans l'environnement de développement).
+
+## 13. Version 2.0.1 : ajustements après essai de la bêta
+
+- **Plus de phrases d'explication** : les libellés suffisent. Retirés notamment « Le bouton Itinéraire te demandera… », l'explication du style de carte, les sous-titres des réglages (exemples, zone dangereuse, ancien stockage), le rappel de l'app d'itinéraire par défaut, l'aide de l'épingle et du recadrage photo, la mention JustWatch du panneau de filtres, la phrase de bas de l'écran de connexion. Les messages d'état (hors ligne, carte indisponible, résultats d'import) et les étapes d'installation restent.
+- **Bouton +** : la feuille d'ajout s'ouvre sans clavier ; il s'ouvre quand on touche la zone de recherche « Quoi » (écart avec le descriptif, qui ouvrait le clavier directement).
+- **Réglages** : section « Sauvegarde » réduite à « Exporter » et « Importer » ; la ligne « Recherche de films et séries » disparaît (le message reste dans l'ajout quand la recherche est indisponible) ; « À propos » ne garde que les attributions (carte, TMDB et sa mention obligatoire, JustWatch, Apple, Lucide).
+- **Import** : les exemples déjà présents dans le compte sont gardés, et l'écran de fin d'import propose « Retirer les exemples » en un geste.
+- **Fiche d'une personne** : le bouton rond « Photo » disparaît, la photo se change en touchant l'avatar (pastille appareil photo).

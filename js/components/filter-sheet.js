@@ -49,7 +49,7 @@ export function openFilterSheet(tab, getCtx) {
       .map((k) => chip('statuses', k, STATUS[cat][k], { color: STATUS_COLORS[k], lead: `<span class="bubble soft" style="--c:${STATUS_COLORS[k]};width:28px;height:28px">${icon(STATUS_ICONS[k], { size: 15 })}</span>` })).join('')}</div>`),
     cities.length ? section('Ville', `<div class="chips-wrap">${cities.map((c) => chip('cities', c.value, c.value)).join('')}</div>`) : '',
     platforms.length
-      ? section('Plateforme', `<div class="chips-wrap">${platforms.map((p) => chip('platforms', p.value, p.value)).join('')}</div><p class="hint">Disponibilités en France : JustWatch, via TMDB.</p>`)
+      ? section('Plateforme', `<div class="chips-wrap">${platforms.map((p) => chip('platforms', p.value, p.value)).join('')}</div>`)
       : '',
     section('Favoris', `<button type="button" class="switch-row" data-k="fav" style="width:100%">
       <span>${icon('star', { size: 18 })}</span><span style="flex:1;text-align:left">Favoris uniquement</span><span class="switch" role="switch" aria-checked="false"></span></button>`),

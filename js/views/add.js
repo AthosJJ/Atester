@@ -1,6 +1,6 @@
 /* Ajout rapide (et édition) d'une recommandation, sur un seul écran :
-   catégorie (trois boutons ronds, pré-sélectionnée), Quoi (clavier ouvert,
-   suggestions dès 3 caractères), Qui (puces récentes + autocomplétion),
+   catégorie (trois boutons ronds, pré-sélectionnée), Quoi (le clavier s'ouvre
+   quand on touche le champ, suggestions dès 3 caractères), Qui (puces récentes + autocomplétion),
    sous-catégorie devinée, puis « Plus de détails » replié.
    Enregistrer tient en moins de 10 s, hors ligne compris. */
 import { icon } from '../components/icons.js';
@@ -178,7 +178,7 @@ function build({ restored = false, research = false, focus = null } = {}) {
   bindEvents();
   setFabOpen(true);
 
-  if (f.mode === 'add' && !restored) quoi.focus();
+  // Pas de clavier à l'ouverture : il s'ouvre quand on touche la zone de recherche.
   if (research) {
     quoi.focus();
     const len = quoi.value.length;
@@ -268,7 +268,6 @@ function renderCatMore() {
       <div class="field" data-r="minimap-wrap">
         <span class="field-label"><span>Position</span><span class="opt" data-r="pos-hint"></span></span>
         <div class="edit-map"><div class="map" data-r="minimap"></div></div>
-        <p class="hint">Fais glisser l’épingle, ou touche la carte pour la placer.</p>
       </div>` : ''}`;
     el.querySelector('[data-d="address"]').value = f.details.address || '';
     el.querySelector('[data-d="city"]').value = f.details.city || '';
@@ -802,7 +801,7 @@ function bindEvents() {
         haptic();
         if (f.title.trim().length >= 3) { runSearch.cancel(); doSearch(); }
       }
-      if (had || f.mode === 'add') quoi.focus();
+      if (had) quoi.focus();
       return;
     }
     if (t.dataset.sug !== undefined) { pick(Number(t.dataset.sug)); return; }

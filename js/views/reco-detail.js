@@ -108,7 +108,7 @@ function infoBlock(r) {
       <h3 class="block-title" style="margin-top:16px">${icon('tv', { size: 16 })}Où le voir</h3>
       ${d.platforms?.length
         ? `<div class="tags">${d.platforms.map((p) => `<span class="tag platform">${esc(p)}</span>`).join('')}</div>`
-        : `<p class="muted" style="font-size:14px">${d.tmdbId ? 'Pas disponible en streaming par abonnement en France pour l’instant.' : 'Plateformes inconnues : utilise « Compléter les infos ».'}</p>`}
+        : `<p class="muted" style="font-size:14px">${d.tmdbId ? 'Pas disponible en streaming par abonnement en France pour l’instant.' : 'Plateformes inconnues.'}</p>`}
       ${d.tmdbId ? `<button type="button" class="btn btn-ghost sm" data-act="refresh-platforms" style="margin-top:12px">${icon('refresh-cw', { size: 16 })}Actualiser les plateformes</button>
         <p class="credit">Plateformes : JustWatch · Données : TMDB</p>` : ''}
       ${d.overview ? `<h3 class="block-title" style="margin-top:16px">Synopsis</h3>
@@ -181,7 +181,7 @@ function render() {
     </section>` : ''}
 
     ${r.status === 'dropped' ? `<section class="dblock"><h2 class="block-title">${icon('thumbs-down', { size: 16 })}Pas pour moi</h2>
-      <p class="muted" style="font-size:14.5px">Classé comme « Pas pour moi ». Tu peux toujours le remettre dans ta liste.</p></section>` : ''}
+      <p class="muted" style="font-size:14.5px">Classé comme « Pas pour moi ».</p></section>` : ''}
 
     ${!hasExternal(r) ? `<button type="button" class="btn btn-soft block" data-act="complete" style="margin-bottom:14px">${icon('wand-sparkles', { size: 18 })}Compléter les infos</button>` : ''}
 
