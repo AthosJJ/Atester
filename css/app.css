@@ -71,9 +71,9 @@ svg.i { flex: none; display: block; }
 .splash-logo {
   width: 88px; height: 88px;
   border-radius: 28px;
-  background: var(--accent-grad);
+  background: var(--icon-grad);
   display: grid; place-items: center;
-  color: #fff;
+  color: var(--on-icon);
   box-shadow: var(--shadow-accent);
   animation: splashPulse 1.4s var(--ease) infinite;
 }
@@ -91,9 +91,9 @@ svg.i { flex: none; display: block; }
   width: 76px; height: 76px;
   margin: 0 auto 16px;
   border-radius: 22px;
-  background: var(--accent-grad);
+  background: var(--icon-grad);
   display: grid; place-items: center;
-  color: var(--on-accent);
+  color: var(--on-icon);
   box-shadow: var(--shadow-accent);
 }
 .login-title { font: 700 30px/1.1 var(--font-title); letter-spacing: -0.01em; text-align: center; }
@@ -1822,9 +1822,9 @@ html.on-push { --toast-bottom: calc(var(--sab) + 92px); }
   width: 76px; height: 76px;
   margin: 4px auto 12px;
   border-radius: 22px;
-  background: var(--accent-grad);
+  background: var(--icon-grad);
   display: grid; place-items: center;
-  color: #fff;
+  color: var(--on-icon);
   box-shadow: var(--shadow-accent);
 }
 

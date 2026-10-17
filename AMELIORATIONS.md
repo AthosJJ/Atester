@@ -147,3 +147,8 @@ Chacun se connecte avec son e-mail et un mot de passe et retrouve ses propres do
 - **Réglages** : section « Sauvegarde » réduite à « Exporter » et « Importer » ; la ligne « Recherche de films et séries » disparaît (le message reste dans l'ajout quand la recherche est indisponible) ; « À propos » ne garde que les attributions (carte, TMDB et sa mention obligatoire, JustWatch, Apple, Lucide).
 - **Import** : les exemples déjà présents dans le compte sont gardés, et l'écran de fin d'import propose « Retirer les exemples » en un geste.
 - **Fiche d'une personne** : le bouton rond « Photo » disparaît, la photo se change en touchant l'avatar (pastille appareil photo).
+
+## 14. Version 2.0.2 : retour de l'icône orange
+
+- L'icône de l'écran d'accueil reprend le dégradé terracotta de la version 1.0 (bulle blanche, coche terracotta), à la place de l'icône encre de la 1.1. Les écrans de lancement iOS, le logo de démarrage dans l'app, celui de l'écran de connexion et celui de la fiche d'installation suivent (jetons `--icon-grad` et `--on-icon`, identiques en thème sombre, où le logo de démarrage était auparavant illisible).
+- Sur iPhone, l'icône d'une web app est figée au moment de l'ajout à l'écran d'accueil : une app déjà installée garde son icône ; il faut la supprimer puis la rajouter pour voir la nouvelle.
