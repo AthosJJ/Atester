@@ -152,3 +152,8 @@ Chacun se connecte avec son e-mail et un mot de passe et retrouve ses propres do
 
 - L'icône de l'écran d'accueil reprend le dégradé terracotta de la version 1.0 (bulle blanche, coche terracotta), à la place de l'icône encre de la 1.1. Les écrans de lancement iOS, le logo de démarrage dans l'app, celui de l'écran de connexion et celui de la fiche d'installation suivent (jetons `--icon-grad` et `--on-icon`, identiques en thème sombre, où le logo de démarrage était auparavant illisible).
 - Sur iPhone, l'icône d'une web app est figée au moment de l'ajout à l'écran d'accueil : une app déjà installée garde son icône ; il faut la supprimer puis la rajouter pour voir la nouvelle.
+
+## 15. Version 2.0.3 : corrections
+
+- **Appui long** : le menu d'une recommandation se refermait au lever du doigt quand on avait tenu plus d'une seconde et demie. Sur iPhone, le retour haptique simule un clic, qui consommait la protection prévue pour le clic du lever du doigt. Désormais, les vrais clics sont ignorés tant que le doigt reste posé et un court instant après ; une action touchée ensuite fonctionne tout de suite.
+- **Menus avec une coche** (« Trier par ») : le choix en cours est centré comme les autres, la coche reste à droite.

@@ -837,6 +837,7 @@ svg.i { flex: none; display: block; }
 .asheet-head h3 { font-size: 15px; font-weight: 600; }
 .asheet-head p { font-size: 13.5px; color: var(--muted); margin-top: 4px; }
 .asheet-btn {
+  position: relative;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%;
   min-height: 56px;
@@ -850,10 +851,13 @@ a.asheet-btn { text-decoration: none; }
 .asheet-btn:active { background: var(--bg-2); }
 .asheet-btn.primary { font-weight: 600; }
 .asheet-btn.danger { color: var(--danger); }
+/* Choix en cours : libellé centré comme les autres, coche à droite. */
+.asheet-btn.check { padding: 0 52px; }
 .asheet-btn.check::after {
   content: "";
+  position: absolute; right: 24px; top: 50%;
   width: 7px; height: 13px;
-  margin: -4px 4px 0 auto;
+  margin-top: -9px;
   border: solid var(--accent-ink);
   border-width: 0 2.5px 2.5px 0;
   transform: rotate(45deg);

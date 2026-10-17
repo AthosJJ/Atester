@@ -77,17 +77,41 @@ export function bindSwipe(container, { onLeft = null, onRight = null } = {}) {
 }
 
 /* Le doigt relevé après un appui long ne doit pas « cliquer » sur le menu
-   qui vient de s'ouvrir sous lui : on avale le clic suivant, où qu'il tombe. */
-function swallowNextClick() {
-  const stop = (e) => { e.stopPropagation(); e.preventDefault(); };
-  document.addEventListener('click', stop, { capture: true, once: true });
-  setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 700);
+   qui vient de s'ouvrir sous lui (il le refermerait, ou choisirait une
+   action) : tant que le doigt reste posé, et un court instant après, les
+   vrais clics sont avalés, où qu'ils tombent. Le clic simulé du retour
+   haptique (isTrusted faux) passe. */
+let blocking = null;
+
+function blockClicks() {
+  if (blocking) return;
+  const stop = (e) => { if (e.isTrusted) { e.stopPropagation(); e.preventDefault(); } };
+  document.addEventListener('click', stop, true);
+  const end = () => {
+    document.removeEventListener('click', stop, true);
+    clearTimeout(safety);
+    if (blocking?.end === end) blocking = null;
+  };
+  const safety = setTimeout(end, 10000); // filet si le lever du doigt nous échappe
+  blocking = { end };
+}
+
+function unblockClicksSoon(delay = 450) {
+  const b = blocking;
+  if (b) setTimeout(b.end, delay);
 }
 
 /* Appui long (menu contextuel), et clic droit sur ordinateur. */
 export function bindLongPress(container, selector, handler, ms = 480) {
   swallowClicks(container);
-  let fired = 0;
+  let holding = false;   // le doigt de l'appui long est encore posé
+  let ending = false;    // le prochain touchend termine un appui long
+  const release = () => {
+    if (!holding) return;
+    holding = false;
+    lastGesture = Date.now();
+    unblockClicksSoon();
+  };
   container.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const el = e.target.closest(selector);
@@ -98,22 +122,27 @@ export function bindLongPress(container, selector, handler, ms = 480) {
       timer: setTimeout(() => {
         press = null;
         lastGesture = Date.now();
-        fired = Date.now();
-        swallowNextClick();
+        holding = true;
+        ending = true;
+        blockClicks();
         haptic();
         handler(el);
       }, ms)
     };
   });
-  // Empêche aussi le clic de compatibilité généré au lever du doigt.
+  // Pas de clic de compatibilité au lever du doigt, quelle que soit la durée de l'appui.
   container.addEventListener('touchend', (e) => {
-    if (Date.now() - fired < 1500 && e.cancelable) e.preventDefault();
+    if (ending && e.cancelable) e.preventDefault();
+    ending = false;
+    release();
   }, { passive: false });
   container.addEventListener('pointermove', (e) => {
     if (press && Math.hypot(e.clientX - press.x0, e.clientY - press.y0) > 10) cancelPress();
   });
-  container.addEventListener('pointerup', cancelPress);
-  container.addEventListener('pointercancel', cancelPress);
+  container.addEventListener('pointerup', () => { cancelPress(); release(); });
+  container.addEventListener('pointercancel', () => { cancelPress(); release(); });
+  // Un nouveau toucher : le doigt de l'appui long est levé, ce clic-là est voulu.
+  document.addEventListener('pointerdown', () => { holding = false; ending = false; blocking?.end(); }, true);
   container.addEventListener('contextmenu', (e) => {
     const el = e.target.closest(selector);
     if (!el) return;

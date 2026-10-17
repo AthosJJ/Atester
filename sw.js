@@ -6,7 +6,7 @@
    (API et affiches), ni les autres API (Photon, iTunes) : toujours le réseau.
    Publier une version = incrémenter CACHE_VERSION (et APP_VERSION dans js/config.js).
    Vérifier la liste : node tools/check-sw.mjs */
-const CACHE_VERSION = 'a-tester-v2.0.2';
+const CACHE_VERSION = 'a-tester-v2.0.3';
 const TILE_CACHE = 'a-tester-tiles-ofm'; // 1.2 : tuiles OpenFreeMap et OSM (l'ancien cache CARTO est purgé)
 const MAP_CACHE = 'a-tester-map';        // styles, polices et icônes de la carte
 const MAP_HOST = 'tiles.openfreemap.org';
