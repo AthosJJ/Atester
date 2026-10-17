@@ -79,6 +79,45 @@ svg.i { flex: none; display: block; }
 }
 @keyframes splashPulse { 50% { transform: scale(0.94); } }
 
+/* ════════ Connexion ════════ */
+.signed-out #app { display: none; }
+.login {
+  min-height: 100dvh;
+  padding: calc(var(--sat) + 48px) var(--gutter) calc(var(--sab) + 28px);
+  animation: viewIn .4s var(--ease-out) both;
+}
+.login-wrap { max-width: 400px; margin: 0 auto; }
+.login-mark {
+  width: 76px; height: 76px;
+  margin: 0 auto 16px;
+  border-radius: 22px;
+  background: var(--accent-grad);
+  display: grid; place-items: center;
+  color: var(--on-accent);
+  box-shadow: var(--shadow-accent);
+}
+.login-title { font: 700 30px/1.1 var(--font-title); letter-spacing: -0.01em; text-align: center; }
+.login-sub { margin: 8px 8px 24px; text-align: center; font-size: 15px; color: var(--muted); }
+.login-note {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--ink-2);
+  font-size: 14px; line-height: 1.45;
+}
+.login .seg { margin-bottom: 20px; }
+.login-msg { margin: -4px 4px 14px; font-size: 14px; line-height: 1.45; }
+.login-msg:empty { display: none; }
+.login .btn .spin { width: 16px; height: 16px; border-color: color-mix(in srgb, currentColor 30%, transparent); border-top-color: currentColor; }
+.login-forgot { display: block; margin: 12px auto 0; font-size: 15px; }
+.login-foot {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 28px 8px 0;
+  font-size: 13px; line-height: 1.45; color: var(--muted);
+}
+.login-foot .i { flex: none; margin-top: 1px; }
+
 /* ════════ Vues ════════ */
 #app { max-width: var(--maxw); margin: 0 auto; }
 
@@ -154,15 +193,6 @@ svg.i { flex: none; display: block; }
   box-shadow: 0 0 0 2px var(--bg);
   animation: pop .45s var(--spring) both;
 }
-.dot {
-  position: absolute; top: 2px; right: 2px;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: var(--danger);
-  box-shadow: 0 0 0 2px var(--bg);
-  animation: pop .45s var(--spring) both;
-}
-
 /* Recherche repliée dans un bouton rond */
 .search-row {
   display: none;
@@ -1381,16 +1411,6 @@ button.srow:active { background: var(--bg-2); }
 .srow .grip { color: var(--faint); padding: 10px 4px; touch-action: none; cursor: grab; }
 .srow.drag-ghost { position: relative; z-index: 5; background: var(--card-2); box-shadow: var(--shadow-3); border-radius: var(--r-md); transition: none; }
 .srow.shift { transition: transform .3s var(--ease); }
-.backup-banner {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px;
-  margin-bottom: 20px;
-  border-radius: var(--r-lg);
-  background: var(--warn-soft);
-  animation: viewIn .4s var(--ease-out) both;
-}
-.backup-banner .grow { flex: 1; font-size: 14px; }
-.backup-banner b { display: block; font-size: 15px; margin-bottom: 2px; }
 .about { font-size: 13.5px; line-height: 1.55; color: var(--muted); padding: 14px 16px; }
 .about p + p { margin-top: 8px; }
 .about a { font-weight: 600; }

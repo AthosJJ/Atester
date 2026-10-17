@@ -1,14 +1,17 @@
-/* Photo d'une personne : carré de 320 px en JPEG (environ 30 Ko), stocké en
-   data URL avec la personne, donc inclus dans la sauvegarde JSON. L'affichage
-   passe par des URL blob mises en cache (une par personne), pour ne pas
-   recopier la photo dans chaque rendu. */
+/* Photo d'une personne : carré de 200 px en JPEG compressé, 30 Ko au plus,
+   rangé en data URL dans la fiche Firestore de la personne (pas de Cloud
+   Storage), donc inclus dans la sauvegarde JSON. L'affichage passe par des
+   URL blob mises en cache (une par personne), pour ne pas recopier la photo
+   dans chaque rendu. */
 
-export const PHOTO_SIZE = 320;
-export const PHOTO_MAX_LENGTH = 400000; // au-delà, la photo d'un import est ignorée
+export const PHOTO_SIZE = 200;
+export const PHOTO_MAX = 30000;          // taille maximale enregistrée (data URL, en caractères)
+const IMPORT_MAX = 400000;               // au-delà, la photo d'un import est ignorée
 const SOURCE_MAX = 2048;                 // côté maximal gardé en mémoire (canvas iOS)
+const QUALITIES = [0.82, 0.74, 0.66, 0.58, 0.5, 0.42];
 const DATA_URL = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/;
 
-export const isPhoto = (s) => typeof s === 'string' && s.length <= PHOTO_MAX_LENGTH && DATA_URL.test(s);
+export const isPhoto = (s) => typeof s === 'string' && s.length <= IMPORT_MAX && DATA_URL.test(s);
 
 function canvas(w, h = w) {
   const c = document.createElement('canvas');
@@ -44,8 +47,26 @@ export function loadPhotoFile(file) {
   });
 }
 
+/* JPEG le plus net qui tienne dans 30 Ko : la qualité baisse par paliers,
+   puis le côté si besoin. */
+function encode(c) {
+  let data = '';
+  for (const q of QUALITIES) {
+    data = c.toDataURL('image/jpeg', q);
+    if (data.length <= PHOTO_MAX) return data;
+  }
+  if (c.width < 64) return data;
+  const small = canvas(Math.round(c.width * 0.8));
+  const ctx = small.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(c, 0, 0, small.width, small.height);
+  const smaller = encode(small);
+  free(small);
+  return smaller;
+}
+
 /* Découpe le carré (sx, sy, côté) de la source et le réduit par moitiés
-   successives jusqu'à 320 px : net, sans moiré. */
+   successives jusqu'à 200 px : net, sans moiré. */
 export function squarePhoto(src, sx, sy, side, size = PHOTO_SIZE) {
   let n = size;
   while (n * 2 <= Math.min(side, SOURCE_MAX)) n *= 2;
@@ -64,9 +85,26 @@ export function squarePhoto(src, sx, sy, side, size = PHOTO_SIZE) {
     c = next;
     n /= 2;
   }
-  const data = c.toDataURL('image/jpeg', 0.82);
+  const data = encode(c);
   free(c);
   return data;
+}
+
+/* Photo venue d'un import (ancien stockage, fichier JSON) : recadrée au
+   centre et convertie au même format. null si elle est illisible. */
+export function shrinkPhoto(data) {
+  if (!isPhoto(data)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) { resolve(null); return; }
+      const side = Math.min(w, h);
+      try { resolve(squarePhoto(img, (w - side) / 2, (h - side) / 2, side)); } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = data;
+  });
 }
 
 /* ——— Affichage : data URL → URL blob, une par personne ——— */

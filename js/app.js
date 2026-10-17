@@ -1,10 +1,13 @@
-/* À tester — démarrage : base locale, vues, routeur, thème, clavier iOS,
-   service worker et bandeau de mise à jour. */
-import { db } from './store/db.js';
+/* À tester — démarrage : connexion au compte, synchronisation Firestore,
+   vues, routeur, thème, clavier iOS, service worker et bandeau de mise à jour. */
 import { on } from './store/events.js';
-import { loadMeta } from './store/settings.js';
-import { loadRecos, allRecos, getReco } from './store/recommendations.js';
-import { loadPersons, ensureMe } from './store/persons.js';
+import { startSync, pendingWipe, lastSyncError } from './store/cloud.js';
+import { allRecos, getReco } from './store/recommendations.js';
+import { me, ensureMe } from './store/persons.js';
+import { watchAuth, logout } from './services/account.js';
+import { loadKey } from './services/tmdb.js';
+import { legacySummary } from './services/legacy.js';
+import { showLogin, hideLogin } from './views/login.js';
 import {
   CONTENT_TABS, hasFilterParams, fromParams, replaceFilters, toQuery, resetFilters
 } from './store/filters.js';
@@ -31,7 +34,7 @@ import personDetailView from './views/person-detail.js';
 import recoDetailView from './views/reco-detail.js';
 import settingsView from './views/settings.js';
 import { CAT_OF, TAB_OF } from './config.js';
-import { $, lsGet, lsSet, isStandalone, IS_IOS } from './utils.js';
+import { $, esc, lsGet, lsSet, isStandalone, IS_IOS } from './utils.js';
 
 const VIEWS = {
   lieux: placesView,
@@ -151,6 +154,7 @@ function currentCategory() {
 
 /* ════════ Service worker et mises à jour ════════ */
 let swReg = null;
+let swAsked = false;
 let reloadAsked = false;
 
 function offerUpdate(worker) {
@@ -163,7 +167,8 @@ function offerUpdate(worker) {
 }
 
 async function registerSW() {
-  if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  if (swAsked || !('serviceWorker' in navigator) || location.protocol === 'file:') return;
+  swAsked = true;
   try {
     swReg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
   } catch {
@@ -217,10 +222,25 @@ function openInstall() {
 /* ════════ Démarrage ════════ */
 
 function fatal(err) {
+  console.error(err);
   const splash = $('#splash');
+  if (!splash) return;
+  splash.classList.remove('gone');
   splash.innerHTML = `<div style="max-width:320px;text-align:center;padding:24px">
-    <h2 style="font:700 22px/1.2 var(--font-title);margin-bottom:10px">Stockage indisponible</h2>
-    <p class="muted">L’app n’a pas pu ouvrir sa base locale (${String(err && err.message || err)}). En navigation privée, ouvre-la dans un onglet normal.</p></div>`;
+    <h2 style="font:700 22px/1.2 var(--font-title);margin-bottom:10px">Démarrage impossible</h2>
+    <p class="muted">L’app n’a pas pu ouvrir tes données (${esc(String(err && err.message || err))}). Ferme-la puis rouvre-la ; en navigation privée, ouvre-la dans un onglet normal.</p></div>`;
+}
+
+/* L'écran de démarrage reste dans la page : il revient le temps de charger
+   les données juste après la connexion. */
+function hideSplash() { $('#splash')?.classList.add('gone'); }
+function showSplash() { $('#splash')?.classList.remove('gone'); }
+
+/* Déconnexion (bouton des réglages, ou session expirée) : tout ce que
+   l'appareil garde du compte est effacé, puis l'app repart de zéro. */
+async function endSession() {
+  await logout();
+  location.reload();
 }
 
 function wire() {
@@ -241,12 +261,12 @@ function wire() {
       go('#/' + tab, { replace: Boolean(current && TAB_ROUTES.includes(current.name)) });
     }
   };
-  addHooks.openSettings = () => go('#/reglages');
   personHooks.add = ({ personId }) => openAdd({ personId });
   settingsHooks.setTheme = setTheme;
   settingsHooks.getTheme = () => lsGet('theme') || 'auto';
   settingsHooks.checkUpdate = checkUpdate;
   settingsHooks.openInstall = openInstall;
+  settingsHooks.logout = endSession;
 
   on('change', (evt) => {
     document.documentElement.classList.add('no-anim');
@@ -261,10 +281,14 @@ function wire() {
     replaceQuiet(tabHash(tab));
   });
   on('meta', (key) => {
-    if (['subcategories', 'lastBackupAt', 'tmdbKeyStatus', 'demo', 'prefs'].includes(key)) {
+    if (['subcategories', 'tmdb', 'demo', 'prefs'].includes(key)) {
       document.documentElement.classList.add('no-anim');
       current?.view.refresh?.({ source: 'meta' });
     }
+  });
+  on('sync-error', ({ code, message }) => {
+    toast(message, { icon: 'cloud-off', duration: 6000 });
+    if (code === 'unauthenticated') endSession();
   });
 
   document.addEventListener('click', (e) => {
@@ -313,20 +337,25 @@ function wire() {
   window.addEventListener('offline', () => document.documentElement.classList.add('offline'));
 }
 
-async function boot() {
-  applyTheme();
-  initViewport();
-  try {
-    await db.open();
-    await loadMeta();
-    await loadPersons();
-    await loadRecos();
-    await ensureMe();
-  } catch (err) {
-    console.error(err);
-    fatal(err);
-    return;
-  }
+/* Données de l'ancienne version encore sur l'appareil : on le signale une
+   fois par lancement, l'import se fait depuis les réglages. */
+async function offerLegacyImport() {
+  const sum = await legacySummary();
+  if (!sum || lsGet('legacy-imported')) return;
+  setTimeout(() => {
+    if (openSheets() || current?.name === 'reglages') return;
+    const n = sum.recos;
+    toast(n ? `${n} recommandation${n > 1 ? 's' : ''} de l’ancienne version ${n > 1 ? 'sont' : 'est'} sur cet appareil.` : 'Des données de l’ancienne version sont sur cet appareil.', {
+      icon: 'cloud-upload', duration: 8000, action: { label: 'Importer', run: () => go('#/reglages') }
+    });
+  }, 1200);
+}
+
+/* Connecté : les données du compte arrivent (cache local d'abord, serveur
+   ensuite), puis les vues se montent. */
+async function startApp(user) {
+  await startSync(user.uid);
+  if (!me()) await ensureMe();
 
   for (const [name, view] of Object.entries(VIEWS)) {
     view.el = document.getElementById('view-' + name);
@@ -336,13 +365,15 @@ async function boot() {
   wire();
   initRouter(onRoute);
   setFabInvite(allRecos().length === 0);
-
-  const splash = $('#splash');
-  splash.classList.add('gone');
-  setTimeout(() => splash.remove(), 450);
+  hideSplash();
+  // Refus du serveur pendant le chargement (règles non publiées, quota) : on le dit.
+  const err = lastSyncError();
+  if (err) toast(err.message, { icon: 'cloud-off', duration: 6000 });
 
   registerSW();
+  loadKey();
   silentPosition();
+  offerLegacyImport();
 
   if (IS_IOS && !isStandalone() && !lsGet('installShown')) {
     setTimeout(() => {
@@ -351,6 +382,29 @@ async function boot() {
       openInstall();
     }, 1800);
   }
+}
+
+let started = false;
+
+async function boot() {
+  applyTheme();
+  initViewport();
+  await pendingWipe();
+  watchAuth((user) => {
+    if (user) {
+      if (started) return;
+      started = true;
+      showSplash();
+      hideLogin();
+      startApp(user).catch(fatal);
+    } else if (started) {
+      endSession(); // session fermée ailleurs ou expirée
+    } else {
+      hideSplash();
+      showLogin();
+      registerSW();
+    }
+  });
 }
 
 boot();

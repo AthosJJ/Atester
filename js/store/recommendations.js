@@ -1,18 +1,31 @@
-/* Recommandations : cache mémoire + IndexedDB. Toute écriture passe ici,
-   met à jour updatedAt et notifie les vues (événement 'change'). */
-import { db } from './db.js';
+/* Recommandations : cache mémoire alimenté par Firestore (store/cloud.js).
+   Toute écriture passe ici : elle met à jour updatedAt, s'applique tout de
+   suite en mémoire, notifie les vues (événement 'change') et part vers
+   Firestore sans être attendue. */
 import { emit } from './events.js';
+import { register, put, patch as patchDoc, remove, commit } from './cloud.js';
 import { CATEGORY_KEYS, STATUS_KEYS } from '../config.js';
-import { uid, nowISO, localDateISO, titleKey, norm } from '../utils.js';
+import { uid, nowISO, localDateISO, titleKey, norm, sameData } from '../utils.js';
 
 let list = [];
 const byId = new Map();
 
-export async function loadRecos() {
-  list = await db.recommendations.toArray();
-  byId.clear();
-  for (const r of list) byId.set(r.id, r);
-}
+/* Instantané Firestore : seules les fiches réellement différentes du cache
+   (modifiées sur un autre appareil, ou annulées par le serveur) sont signalées. */
+register('recommendations', (snap, first) => {
+  if (first) { list = []; byId.clear(); }
+  const ids = [];
+  for (const ch of snap.docChanges()) {
+    const id = ch.doc.id;
+    if (ch.type === 'removed') {
+      if (byId.has(id)) { drop(id); ids.push(id); }
+      continue;
+    }
+    const r = normalizeReco({ ...ch.doc.data(), id });
+    if (!sameData(byId.get(id), r)) { keep(r); ids.push(id); }
+  }
+  if (ids.length) emit('change', { type: 'sync', ids });
+});
 
 export const allRecos = () => list;
 export const getReco = (id) => byId.get(id) || null;
@@ -89,11 +102,27 @@ async function askPersist() {
 export async function createReco(data) {
   const now = nowISO();
   const r = normalizeReco({ ...data, id: uid(), createdAt: now, updatedAt: now });
-  await db.recommendations.put(r);
   keep(r);
+  put('recommendations', r.id, r);
   emit('change', { type: 'create', ids: [r.id] });
   askPersist();
   return r;
+}
+
+/* Champs modifiés, au format Firestore (« details.platforms ») : deux
+   appareils qui changent des champs différents ne s'écrasent pas. */
+function changedFields(cur, next) {
+  const out = {};
+  for (const k of Object.keys(next)) {
+    if (k === 'details') {
+      for (const dk of Object.keys(next.details)) {
+        if (!sameData(cur.details?.[dk], next.details[dk])) out['details.' + dk] = next.details[dk];
+      }
+    } else if (!sameData(cur[k], next[k])) {
+      out[k] = next[k];
+    }
+  }
+  return out;
 }
 
 export async function updateReco(id, patch, { silent = false } = {}) {
@@ -111,8 +140,9 @@ export async function updateReco(id, patch, { silent = false } = {}) {
   if (next.status !== 'done') next.rating = null;
   next.updatedAt = nowISO();
   const r = normalizeReco(next);
-  await db.recommendations.put(r);
   keep(r);
+  if (r.category !== cur.category) put('recommendations', id, r);
+  else patchDoc('recommendations', id, changedFields(cur, r));
   if (!silent) emit('change', { type: 'update', ids: [id] });
   return r;
 }
@@ -138,35 +168,41 @@ export function addPersonsTo(id, personIds) {
 export async function deleteReco(id) {
   const r = byId.get(id);
   if (!r) return null;
-  await db.recommendations.delete(id);
   drop(id);
+  remove('recommendations', id);
   emit('change', { type: 'delete', ids: [id] });
   return r;
 }
 
 /* Remet un instantané tel quel (annulation). */
 export async function restoreReco(snapshot) {
-  await db.recommendations.put(snapshot);
   keep(snapshot);
+  put('recommendations', snapshot.id, snapshot);
   emit('change', { type: 'restore', ids: [snapshot.id] });
 }
 
+/* Écritures en bloc (exemples, sous-catégorie supprimée). */
 export async function putRecos(recos, { silent = false } = {}) {
   if (!recos.length) return;
-  await db.recommendations.bulkPut(recos);
   recos.forEach(keep);
+  commit(recoOps(recos));
   if (!silent) emit('change', { type: 'bulk', ids: recos.map((r) => r.id) });
 }
 
 export async function deleteRecos(ids, { silent = false } = {}) {
   if (!ids.length) return;
-  await db.recommendations.bulkDelete(ids);
   ids.forEach(drop);
+  commit(ids.map((id) => ({ type: 'delete', col: 'recommendations', id })));
   if (!silent) emit('change', { type: 'bulk-delete', ids });
 }
 
-/* Met à jour le cache après une transaction faite ailleurs (fusion de personnes). */
+/* Opérations Firestore correspondantes, pour un lot préparé ailleurs
+   (fusion de personnes, import). */
+export const recoOps = (recos) => recos.map((r) => ({ type: 'set', col: 'recommendations', id: r.id, data: r }));
+
+/* Met à jour le cache après un lot écrit ailleurs. */
 export function cacheRecos(recos) { recos.forEach(keep); }
+export function uncacheRecos(ids) { ids.forEach(drop); }
 
 export async function reassignSubcat(cat, from, to) {
   const now = nowISO();

@@ -1,38 +1,45 @@
-/* Table meta : sous-catégories, préférences, clé TMDB, dates de sauvegarde.
-   Tout est gardé en mémoire après le chargement : lecture synchrone. */
-import { db } from './db.js';
+/* Réglages. Ceux du compte (sous-catégories, exemples) vivent dans le
+   document de l'app sur Firestore et suivent la personne d'un appareil à
+   l'autre ; ceux de l'appareil (style de carte, appli d'itinéraire, dernière
+   catégorie) restent dans localStorage. Tout est lu de façon synchrone. */
 import { emit } from './events.js';
+import { register, setApp, DELETE } from './cloud.js';
 import { DEFAULT_SUBCATEGORIES, CATEGORY_KEYS, SCHEMA_VERSION } from '../config.js';
-import { norm, nowISO } from '../utils.js';
+import { norm, lsGet, lsSet, sameData } from '../utils.js';
 
 const cache = new Map();
 
-export async function loadMeta() {
-  const rows = await db.meta.toArray();
-  cache.clear();
-  for (const r of rows) cache.set(r.key, r.value);
-  if (!cache.has('subcategories')) await setMeta('subcategories', structuredClone(DEFAULT_SUBCATEGORIES), true);
-  if (!cache.has('schemaVersion')) await setMeta('schemaVersion', SCHEMA_VERSION, true);
-  if (!cache.has('firstLaunchAt')) await setMeta('firstLaunchAt', nowISO(), true);
-}
+register('app', (snap, first) => {
+  const data = snap.exists() ? snap.data() : {};
+  if (first) cache.clear();
+  const keys = new Set([...cache.keys(), ...Object.keys(data)]);
+  for (const key of keys) {
+    const value = data[key] ?? null;
+    if (sameData(cache.get(key) ?? null, value)) continue;
+    if (value === null) cache.delete(key);
+    else cache.set(key, value);
+    emit('meta', key);
+  }
+});
 
 export const getMeta = (key, fallback = null) => (cache.has(key) ? cache.get(key) : fallback);
 
 export async function setMeta(key, value, silent = false) {
   if (value === undefined || value === null) {
     cache.delete(key);
-    await db.meta.delete(key);
+    setApp({ [key]: DELETE });
   } else {
     cache.set(key, value);
-    await db.meta.put({ key, value });
+    setApp({ [key]: value, schemaVersion: SCHEMA_VERSION });
   }
   if (!silent) emit('meta', key);
 }
 
-/* ——— Préférences ——— */
-export const getPref = (key, fallback = null) => (getMeta('prefs', {})[key] ?? fallback);
+/* ——— Préférences de l'appareil ——— */
+export const getPref = (key, fallback = null) => (lsGet('prefs', {})?.[key] ?? fallback);
 export async function setPref(key, value) {
-  await setMeta('prefs', { ...getMeta('prefs', {}), [key]: value });
+  lsSet('prefs', { ...lsGet('prefs', {}), [key]: value });
+  emit('meta', 'prefs');
 }
 
 /* ——— Sous-catégories ——— */

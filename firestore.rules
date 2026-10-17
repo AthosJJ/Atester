@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// Règles de sécurité Cloud Firestore du projet athos-apps (À tester, puis
+// Lecture). À publier dans la console Firebase : Firestore Database > Règles.
+//  - Chaque utilisateur connecté lit et écrit uniquement sous users/{son uid}
+//    (À tester : users/{uid}/apps/atester ; Lecture : users/{uid}/apps/lecture).
+//  - config/ (clé TMDB) est lisible par tout utilisateur connecté et n'est
+//    jamais modifiable depuis l'app : on la remplit dans la console.
+//  - Tout le reste est refusé.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    match /config/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

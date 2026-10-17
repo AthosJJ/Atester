@@ -1,12 +1,12 @@
 /* Filtres, recherche et tri. Un état par onglet, encodé dans l'URL et gardé
-   dans localStorage (chargement instantané) et dans la table meta.
+   dans localStorage : il est propre à l'appareil.
    Les critères se combinent en ET entre eux, en OU à l'intérieur d'un critère. */
 import { CAT_OF, STATUS, STATUS_KEYS } from '../config.js';
 import { norm, lsGet, lsSet, distanceKm } from '../utils.js';
 import { emit } from './events.js';
 import { allRecos } from './recommendations.js';
 import { getPerson } from './persons.js';
-import { subcat, getMeta, setMeta } from './settings.js';
+import { subcat } from './settings.js';
 
 export const CONTENT_TABS = ['lieux', 'ecrans', 'podcasts'];
 
@@ -50,7 +50,7 @@ function sanitize(tab, raw = {}) {
 
 export function getFilters(tab) {
   if (!states[tab]) {
-    const saved = lsGet('filters:' + tab) || getMeta('filters', {})[tab];
+    const saved = lsGet('filters:' + tab);
     states[tab] = sanitize(tab, saved || {});
   }
   return states[tab];
@@ -58,8 +58,6 @@ export function getFilters(tab) {
 
 function persist(tab) {
   lsSet('filters:' + tab, states[tab]);
-  const all = { ...getMeta('filters', {}), [tab]: states[tab] };
-  setMeta('filters', all, true).catch(() => {});
 }
 
 export function setFilters(tab, patch) {

@@ -15,7 +15,6 @@ import {
 import { subcats } from '../store/settings.js';
 import { recosOf } from '../store/recommendations.js';
 import { getPosition, geoErrorMessage } from '../services/geo.js';
-import { backupDue } from '../services/backup.js';
 import { CAT_OF, CATEGORIES, SORTS, TEXT_DEBOUNCE } from '../config.js';
 import { esc, inkOn, debounce, plural } from '../utils.js';
 import { go } from '../router.js';
@@ -62,7 +61,7 @@ export function createHeader(section, { tab, title, segment, getCtx }) {
       <div class="head-actions">
         <button type="button" class="rbtn" data-act="search" aria-label="Rechercher">${icon('search')}</button>
         <button type="button" class="rbtn" data-act="filters" aria-label="Filtres">${icon('sliders-horizontal')}<span class="badge" hidden></span></button>
-        <button type="button" class="rbtn" data-act="settings" aria-label="Réglages">${icon('settings')}<span class="dot" hidden></span></button>
+        <button type="button" class="rbtn" data-act="settings" aria-label="Réglages">${icon('settings')}</button>
       </div>
     </div>
     <div class="search-row">
@@ -226,7 +225,6 @@ export function createHeader(section, { tab, title, segment, getCtx }) {
     const n = activeCount(tab, st);
     section.querySelectorAll('[data-act="filters"] .badge').forEach((b) => { b.hidden = !n; b.textContent = String(n); });
     head.querySelector('[data-act="search"]').classList.toggle('on', Boolean(st.q));
-    head.querySelector('.dot').hidden = !backupDue();
     if (st.q && document.activeElement !== input) {
       input.value = st.q;
       clearBtn.hidden = false;

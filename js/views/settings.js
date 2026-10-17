@@ -1,27 +1,35 @@
-/* Réglages : sauvegarde (rappel à 14 jours), sous-catégories (ajout, renommage,
-   couleur, icône, ordre par glisser), clé TMDB, thème, carte et itinéraire,
-   exemples, mise à jour, à propos et attributions, zone dangereuse (double
-   confirmation). */
+/* Réglages : compte (adresse, déconnexion), import des données de l'ancienne
+   version, sauvegarde JSON facultative, sous-catégories (ajout, renommage,
+   couleur, icône, ordre par glisser), recherche de films (TMDB), thème, carte
+   et itinéraire, exemples, mise à jour, à propos et attributions, zone
+   dangereuse (double confirmation). */
 import { icon } from '../components/icons.js';
 import { subBubble } from '../components/reco-card.js';
 import { openSheet, actionSheet, confirmSheet } from '../components/bottom-sheet.js';
 import { toast } from '../components/toast.js';
 import {
-  getMeta, setMeta, getPref, setPref, subcats, subcat, addSubcat, updateSubcat, removeSubcat, reorderSubcats
+  getPref, setPref, subcats, subcat, addSubcat, updateSubcat, removeSubcat, reorderSubcats
 } from '../store/settings.js';
 import { allRecos, reassignSubcat } from '../store/recommendations.js';
 import { getFilters, setFilters } from '../store/filters.js';
-import { exportBackup, parseBackup, importMerge, importReplace, backupDue, wipeAll } from '../services/backup.js';
-import { getKey, saveKey, testKey, keyStatus } from '../services/tmdb.js';
+import { flushed } from '../store/cloud.js';
+import {
+  exportBackup, lastBackupAt, parseBackup, importMerge, importLocal, wipeAll, ImportError
+} from '../services/backup.js';
+import { keyStatus, unavailableMessage } from '../services/tmdb.js';
+import { currentUser } from '../services/account.js';
+import { legacySummary, deleteLegacy } from '../services/legacy.js';
 import { loadDemo, removeDemo, hasDemo } from '../services/demo.js';
 import { APP_VERSION, CATEGORIES, CATEGORY_KEYS, TAB_OF, SUBCAT_COLORS, PICKER_ICONS, MAP_STYLES, NAV_APPS } from '../config.js';
-import { esc, inkOn, relDate, longDate, clamp, haptic, isStandalone, IS_IOS } from '../utils.js';
+import { esc, inkOn, longDate, clamp, haptic, isStandalone, lsGet, lsSet, plural, IS_IOS } from '../utils.js';
 import { back } from '../router.js';
 
-export const settingsHooks = { setTheme: null, getTheme: () => 'auto', checkUpdate: null, openInstall: null };
+export const settingsHooks = { setTheme: null, getTheme: () => 'auto', checkUpdate: null, openInstall: null, logout: null };
 
 let section, navbar, wrap;
 let subCat = 'place';
+let legacy = null;   // données de l'ancienne version sur cet appareil ({ recos, persons } ou null)
+let busy = null;     // action en cours (import, déconnexion)
 
 function row({ act, ico, color = '#5B6B7C', title, sub = '', val = '', danger = false, chevron = false, tag = 'button', attrs = '' }) {
   return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="srow${danger ? ' danger' : ''}" ${act ? `data-act="${act}"` : ''} ${attrs}>
@@ -43,12 +51,34 @@ function subList() {
     </div>`).join('');
 }
 
-function render() {
-  const last = getMeta('lastBackupAt');
-  const due = backupDue();
-  const theme = settingsHooks.getTheme();
+function tmdbStatus() {
   const status = keyStatus();
+  if (status === 'ok') return 'Disponible : affiches, genres et plateformes sont ajoutés automatiquement.';
+  if (status === null) return navigator.onLine ? 'Vérification en cours…' : 'Hors ligne : la disponibilité sera vérifiée au retour du réseau.';
+  return esc(unavailableMessage());
+}
+
+function legacySection() {
+  if (!legacy) return '';
+  const what = [legacy.recos ? plural(legacy.recos, ['recommandation', 'recommandations']) : '', legacy.persons ? plural(legacy.persons, ['personne', 'personnes']) : '']
+    .filter(Boolean).join(' et ');
+  const imported = lsGet('legacy-imported');
+  return `
+    <section class="sgroup">
+      <h2 class="sgroup-title">Ancienne version sur cet appareil</h2>
+      <div class="scard">
+        ${row({ act: 'import-local', ico: 'cloud-upload', color: '#2F8FD8', title: 'Importer mes données locales', sub: `${esc(what)} enregistrées sur cet appareil${imported ? ` · déjà importées le ${esc(longDate(imported))}` : ''}`, val: busy === 'import-local' ? '<span class="spin" aria-label="Import en cours"></span>' : '', chevron: busy !== 'import-local' })}
+        ${imported ? row({ act: 'clear-local', ico: 'trash-2', color: '#8A8F98', title: 'Vider l’ancien stockage', sub: 'Tes données sont dans ton compte : cet appareil n’a plus besoin de cette copie' }) : ''}
+      </div>
+      <p class="hint">L’import ajoute à ton compte ce qui n’y est pas encore, sans doublons : tu peux le relancer sans risque.</p>
+    </section>`;
+}
+
+function render() {
+  const last = lastBackupAt();
+  const theme = settingsHooks.getTheme();
   const demo = hasDemo();
+  const user = currentUser();
   const total = allRecos().length;
   const mapStyle = getPref('mapStyle', 'liberty');
   const navApp = getPref('navApp', 'ask');
@@ -57,19 +87,23 @@ function render() {
   wrap.innerHTML = `
     <h1 class="settings-title">Réglages</h1>
 
-    ${due ? `<div class="backup-banner" role="status">
-      <span class="bubble" style="--c:#E9A23B;--ci:#1E1A16;width:40px;height:40px">${icon('shield', { size: 20 })}</span>
-      <span class="grow"><b>Pense à sauvegarder</b>${last ? `Dernière sauvegarde ${esc(relDate(last))}.` : 'Aucune sauvegarde pour l’instant.'} Des ajouts n’y sont pas.</span>
-      <button type="button" class="btn btn-primary sm" data-act="export">Exporter</button>
-    </div>` : ''}
+    <section class="sgroup">
+      <h2 class="sgroup-title">Compte</h2>
+      <div class="scard">
+        ${row({ tag: 'div', ico: 'mail', color: '#5B6B7C', title: user?.email || 'Compte', sub: `${plural(total, ['recommandation', 'recommandations'])} dans ton compte, sur tous tes appareils` })}
+        ${row({ act: 'logout', ico: 'log-out', color: '#D64532', title: 'Se déconnecter', danger: true, val: busy === 'logout' ? '<span class="spin" aria-label="Déconnexion"></span>' : '' })}
+      </div>
+    </section>
+
+    ${legacySection()}
 
     <section class="sgroup">
-      <h2 class="sgroup-title">Sauvegarde</h2>
+      <h2 class="sgroup-title">Sauvegarde facultative</h2>
       <div class="scard">
-        ${row({ act: 'export', ico: 'download', color: '#2E8B57', title: 'Exporter une sauvegarde', sub: last ? `Dernière : ${esc(longDate(last))}` : 'Jamais sauvegardé', chevron: true })}
-        ${row({ act: 'import', ico: 'upload', color: '#3A7BD5', title: 'Importer une sauvegarde', sub: 'Fusionner ou tout remplacer', chevron: true })}
+        ${row({ act: 'export', ico: 'download', color: '#2E8B57', title: 'Exporter une sauvegarde', sub: last ? `Dernière : ${esc(longDate(last))}` : 'Fichier JSON avec toutes tes données', chevron: true })}
+        ${row({ act: 'import', ico: 'upload', color: '#3A7BD5', title: 'Importer un fichier JSON', sub: 'Ajoute ce qui manque, sans doublons', val: busy === 'import' ? '<span class="spin" aria-label="Import en cours"></span>' : '', chevron: busy !== 'import' })}
       </div>
-      <p class="hint">Tes données restent sur cet appareil. ${IS_IOS ? 'Sur iPhone, choisis « Enregistrer dans Fichiers » ou iCloud Drive.' : ''} ${total} recommandation${total > 1 ? 's' : ''} au total.</p>
+      <p class="hint">Tes données sont enregistrées dans ton compte. L’export est une copie de sécurité, à garder où tu veux.${IS_IOS ? ' Sur iPhone, choisis « Enregistrer dans Fichiers » ou iCloud Drive.' : ''}</p>
       <input type="file" accept="application/json,.json" data-r="file" hidden>
     </section>
 
@@ -84,18 +118,9 @@ function render() {
     </section>
 
     <section class="sgroup">
-      <h2 class="sgroup-title">Films & séries (TMDB)</h2>
-      <div class="scard" style="padding:16px">
-        <label class="field" style="margin-bottom:12px">
-          <span class="field-label"><span>Clé API TMDB</span>${status === 'ok' ? '<span class="opt ok-text">valide</span>' : status === 'invalid' ? '<span class="opt error-text">refusée</span>' : ''}</span>
-          <span class="input-wrap">
-            <input class="input" type="password" data-r="tmdb" value="${esc(getKey())}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Clé v3 ou jeton de lecture v4">
-            <button type="button" class="rbtn" data-act="toggle-key" aria-label="Afficher la clé">${icon('eye', { size: 18 })}</button>
-          </span>
-        </label>
-        <button type="button" class="btn btn-soft sm" data-act="test-key">${icon('key-round', { size: 17 })}Tester la clé</button>
-        <p class="hint" data-r="tmdb-status" role="status">${status === 'invalid' ? '<span class="error-text">TMDB refuse cette clé : la recherche de films est désactivée.</span>' : ''}</p>
-        <p class="hint">Gratuite pour un usage personnel : crée un compte sur <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org › Paramètres › API</a>, puis colle la clé ici. Elle reste sur cet appareil et n’est jamais exportée. Sans clé, l’ajout de films reste possible en saisie libre.</p>
+      <h2 class="sgroup-title">Films & séries</h2>
+      <div class="scard">
+        ${row({ tag: 'div', ico: 'clapperboard', color: '#9B5DE5', title: 'Recherche de films et séries', sub: tmdbStatus() })}
       </div>
     </section>
 
@@ -145,18 +170,17 @@ function render() {
     <section class="sgroup">
       <h2 class="sgroup-title">À propos</h2>
       <div class="scard about">
-        <p><b style="color:var(--ink)">À tester</b> · version ${APP_VERSION}. Les recommandations qu’on te fait, avec la personne qui te les a faites. Tes données restent sur ce téléphone et ne sont envoyées nulle part.</p>
-        <p>Sur iPhone, iOS peut dans certains cas effacer les données d’un site web ou d’une app web peu utilisée. <b>L’export JSON est ta vraie sauvegarde</b> : pense à en faire un de temps en temps.</p>
+        <p><b style="color:var(--ink)">À tester</b> · version ${APP_VERSION}. Les recommandations qu’on te fait, avec la personne qui te les a faites. Tes données sont enregistrées dans ton compte (Firebase de Google, serveurs en Europe), visibles de toi seul, et restent disponibles hors connexion.</p>
         <p>Carte : données <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, fonds de carte <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> (<a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">© OpenMapTiles</a>), affichée avec Leaflet et MapLibre. Recherche de lieux : Photon (komoot), données OpenStreetMap.</p>
-        <p>Films et séries : <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. Plateformes de streaming : JustWatch.</p>
-        <p>Podcasts : API iTunes Search d’Apple. Icônes : Lucide (ISC). Base locale : Dexie.</p>
+        <p>Films et séries : <a href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>. Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. <span lang="en">This product uses the TMDB API but is not endorsed or certified by TMDB.</span> Plateformes de streaming : JustWatch.</p>
+        <p>Podcasts : API iTunes Search d’Apple. Icônes : Lucide (ISC). Comptes et données : Firebase.</p>
       </div>
     </section>
 
     <section class="sgroup">
       <h2 class="sgroup-title">Zone dangereuse</h2>
       <div class="scard">
-        ${row({ act: 'wipe', ico: 'triangle-alert', color: '#D64532', title: 'Tout effacer', sub: 'Recommandations et personnes de cet appareil', danger: true })}
+        ${row({ act: 'wipe', ico: 'triangle-alert', color: '#D64532', title: 'Tout effacer', sub: 'Recommandations et personnes de ton compte, sur tous tes appareils', danger: true })}
       </div>
     </section>`;
   bindReorder(wrap.querySelector('[data-r="sublist"]'));
@@ -298,6 +322,43 @@ async function doExport() {
   }
 }
 
+/* Les données de l'ancienne version sont relues à chaque ouverture des réglages. */
+async function refreshLegacy() {
+  const next = await legacySummary();
+  if (JSON.stringify(next) === JSON.stringify(legacy)) return;
+  legacy = next;
+  if (!section.hidden) render();
+}
+
+function importReport(res) {
+  const parts = [`${plural(res.added, ['recommandation ajoutée', 'recommandations ajoutées'])}`];
+  if (res.updated) parts.push(plural(res.updated, ['mise à jour', 'mises à jour']));
+  parts.push(plural(res.persons, ['personne ajoutée', 'personnes ajoutées']));
+  return parts.join(', ') + '.';
+}
+
+function importFailed(err) {
+  if (err instanceof ImportError && err.kind === 'offline') {
+    return actionSheet({ title: 'Pas de connexion', message: 'L’import envoie tes données dans ton compte : réessaie quand le réseau sera revenu. Rien n’a été modifié.', actions: [], cancel: 'OK' });
+  }
+  if (err instanceof ImportError && err.kind === 'empty') {
+    return actionSheet({ title: 'Rien à importer', message: 'L’ancien stockage de cet appareil est vide.', actions: [], cancel: 'OK' });
+  }
+  return actionSheet({ title: 'Import interrompu', message: `${err?.message || err}. Tu peux relancer l’import : il ne crée pas de doublons.`, actions: [], cancel: 'OK' });
+}
+
+async function runImport(kind, task) {
+  if (busy) return;
+  busy = kind;
+  render();
+  try {
+    return await task();
+  } finally {
+    busy = null;
+    render();
+  }
+}
+
 async function doImport(file) {
   const text = await file.text();
   const parsed = parseBackup(text);
@@ -308,45 +369,102 @@ async function doImport(file) {
   const { data } = parsed;
   const n = data.recommendations.length;
   const p = data.persons.filter((x) => !x.isMe).length;
-  const mode = await actionSheet({
-    title: `Importer ${n} recommandation${n > 1 ? 's' : ''} et ${p} personne${p > 1 ? 's' : ''} ?`,
-    message: `Sauvegarde du ${longDate(data.exportedAt)}.`,
-    actions: [
-      { label: 'Fusionner avec mes données', value: 'merge', primary: true, icon: 'git-merge' },
-      { label: 'Remplacer tout', value: 'replace', danger: true, icon: 'triangle-alert' }
-    ]
+  const ok = await confirmSheet({
+    title: `Importer ${plural(n, ['recommandation', 'recommandations'])} et ${plural(p, ['personne', 'personnes'])} ?`,
+    message: `Sauvegarde du ${longDate(data.exportedAt)}. Ce qui est déjà dans ton compte n’est pas dupliqué.`,
+    confirm: 'Importer', icon: 'upload'
   });
-  if (!mode) return;
-  if (mode === 'replace') {
+  if (!ok) return;
+  try {
+    const res = await runImport('import', () => importMerge(data));
+    const message = res.pending
+      ? `${importReport(res)} L’envoi vers ton compte n’est pas terminé : il continue en arrière-plan.`
+      : res.verified ? `${importReport(res)} Tout est bien dans ton compte.` : `${importReport(res)} ${plural(res.missing, ['élément manque', 'éléments manquent'])} sur le serveur : relance l’import un peu plus tard.`;
+    await actionSheet({ title: 'Import terminé', message, actions: [], cancel: 'OK' });
+  } catch (err) {
+    await importFailed(err);
+  }
+}
+
+/* Ancien stockage → compte, puis vérification sur le serveur ; une fois
+   l'import vérifié, l'app propose de vider l'ancien stockage. */
+async function doImportLocal() {
+  let res;
+  try {
+    res = await runImport('import-local', () => importLocal());
+  } catch (err) {
+    await importFailed(err);
+    return;
+  }
+  if (!res.verified) {
+    const message = res.pending
+      ? `${importReport(res)} L’envoi vers ton compte n’est pas terminé (réseau lent ?). Relance l’import un peu plus tard pour le vérifier : il ne crée pas de doublons.`
+      : `${importReport(res)} ${plural(res.missing, ['élément manque', 'éléments manquent'])} sur le serveur : relance l’import un peu plus tard. L’ancien stockage est gardé.`;
+    await actionSheet({ title: 'Import à vérifier', message, actions: [], cancel: 'OK' });
+    return;
+  }
+  const clear = await actionSheet({
+    title: 'Import terminé et vérifié',
+    message: `${importReport(res)} Tout est bien dans ton compte. Tu peux maintenant vider l’ancien stockage de cet appareil.`,
+    actions: [{ label: 'Vider l’ancien stockage', value: 'clear', danger: true, icon: 'trash-2' }],
+    cancel: 'Plus tard'
+  });
+  if (clear === 'clear') await clearLocal({ confirmed: true });
+  else render();
+}
+
+async function clearLocal({ confirmed = false } = {}) {
+  if (!confirmed) {
     const ok = await confirmSheet({
-      title: 'Remplacer toutes tes données ?',
-      message: `Les ${allRecos().length} recommandations actuelles seront remplacées par celles du fichier. Cette action est définitive.`,
-      confirm: 'Remplacer tout', danger: true
+      title: 'Vider l’ancien stockage ?',
+      message: 'La copie de l’ancienne version est effacée de cet appareil. Tes données restent dans ton compte.',
+      confirm: 'Vider', danger: true, icon: 'trash-2'
     });
     if (!ok) return;
   }
-  try {
-    const res = mode === 'merge' ? await importMerge(data) : await importReplace(data);
-    const parts = [`${res.added} recommandation${res.added > 1 ? 's' : ''} importée${res.added > 1 ? 's' : ''}`];
-    if (res.updated) parts.push(`${res.updated} mise${res.updated > 1 ? 's' : ''} à jour`);
-    parts.push(`${res.persons} personne${res.persons > 1 ? 's' : ''} ajoutée${res.persons > 1 ? 's' : ''}`);
-    await actionSheet({ title: 'Import terminé', message: parts.join(', ') + '.', actions: [], cancel: 'OK' });
-    render();
-  } catch (err) {
-    toast('Import interrompu : ' + err.message, { icon: 'triangle-alert' });
+  const done = await deleteLegacy();
+  if (!done) {
+    toast('Impossible de vider l’ancien stockage pour l’instant. Ferme l’app puis réessaie.', { icon: 'triangle-alert' });
+    return;
   }
+  lsSet('legacy-imported', null);
+  legacy = null;
+  render();
+  toast('Ancien stockage vidé', { icon: 'check', tone: 'ok' });
+}
+
+/* Déconnexion : les modifications pas encore envoyées seraient perdues. */
+async function doLogout() {
+  if (busy) return;
+  const ok = await confirmSheet({
+    title: 'Se déconnecter ?',
+    message: 'Tes données restent dans ton compte. Cet appareil efface tout ce qu’il en garde ; il faudra te reconnecter pour les retrouver.',
+    confirm: 'Se déconnecter', danger: true, icon: 'log-out'
+  });
+  if (!ok) return;
+  busy = 'logout';
+  render();
+  if (!(await flushed())) {
+    const force = await confirmSheet({
+      title: 'Des modifications ne sont pas encore envoyées',
+      message: 'Elles attendent le réseau. Si tu te déconnectes maintenant, elles seront perdues.',
+      confirm: 'Se déconnecter quand même', danger: true, icon: 'triangle-alert'
+    });
+    if (!force) { busy = null; render(); return; }
+  }
+  await settingsHooks.logout?.();
 }
 
 async function wipe() {
   const first = await confirmSheet({
     title: 'Tout effacer ?',
-    message: `${allRecos().length} recommandations et toutes les personnes seront supprimées de cet appareil. Exporte une sauvegarde avant si besoin.`,
+    message: `${plural(allRecos().length, ['recommandation', 'recommandations'])} et toutes les personnes seront supprimées de ton compte, sur tous tes appareils. Exporte une sauvegarde avant si besoin.`,
     confirm: 'Continuer', danger: true, icon: 'triangle-alert'
   });
   if (!first) return;
   const second = await confirmSheet({
     title: 'Vraiment tout effacer ?',
-    message: 'Dernière confirmation : cette action ne peut pas être annulée. Tes réglages (thème, clé TMDB) sont conservés.',
+    message: 'Dernière confirmation : cette action ne peut pas être annulée. Tes réglages (thème, carte) sont conservés.',
     confirm: 'Oui, tout effacer', danger: true, icon: 'trash-2'
   });
   if (!second) return;
@@ -387,35 +505,9 @@ export default {
         case 'import': wrap.querySelector('[data-r="file"]').click(); break;
         case 'edit-sub': openSubEditor(subCat, t.dataset.key); break;
         case 'add-sub': openSubEditor(subCat, null); break;
-        case 'toggle-key': {
-          const input = wrap.querySelector('[data-r="tmdb"]');
-          input.type = input.type === 'password' ? 'text' : 'password';
-          t.innerHTML = icon(input.type === 'password' ? 'eye' : 'eye-off', { size: 18 });
-          break;
-        }
-        case 'test-key': {
-          const input = wrap.querySelector('[data-r="tmdb"]');
-          const out = wrap.querySelector('[data-r="tmdb-status"]');
-          const key = input.value.trim();
-          if (!key) { out.innerHTML = '<span class="error-text">Colle d’abord ta clé.</span>'; return; }
-          await saveKey(key);
-          out.innerHTML = '<span class="spin" style="display:inline-block;vertical-align:-3px"></span> Test en cours…';
-          const res = await testKey(key);
-          if (res.ok) {
-            await setMeta('tmdbKeyStatus', 'ok');
-            toast('Clé TMDB valide', { icon: 'check', tone: 'ok' });
-          } else if (res.reason === 'invalid') {
-            await setMeta('tmdbKeyStatus', 'invalid');
-          }
-          render();
-          const msg = wrap.querySelector('[data-r="tmdb-status"]');
-          msg.innerHTML = res.ok
-            ? '<span class="ok-text">Clé valide : les affiches et plateformes sont activées.</span>'
-            : res.reason === 'invalid'
-              ? '<span class="error-text">TMDB refuse cette clé. Vérifie-la (clé d’API v3 ou jeton de lecture v4).</span>'
-              : '<span class="error-text">Impossible de joindre TMDB pour l’instant (hors ligne ?). La clé est enregistrée.</span>';
-          break;
-        }
+        case 'logout': doLogout(); break;
+        case 'import-local': doImportLocal(); break;
+        case 'clear-local': clearLocal(); break;
         case 'demo-on': {
           const n = await loadDemo();
           toast(`${n} exemples chargés`, { icon: 'sparkles' });
@@ -440,17 +532,16 @@ export default {
         e.target.value = '';
         if (file) doImport(file);
       }
-      if (e.target.matches('[data-r="tmdb"]')) {
-        await saveKey(e.target.value);
-        const out = wrap.querySelector('[data-r="tmdb-status"]');
-        if (out) out.textContent = e.target.value.trim() ? 'Clé enregistrée sur cet appareil. Touche « Tester la clé » pour vérifier.' : 'Clé supprimée.';
-      }
     });
     window.addEventListener('scroll', onScroll, { passive: true });
   },
-  show() { render(); onScroll(); },
+  show() {
+    render();
+    onScroll();
+    refreshLegacy();
+  },
   refresh() {
-    // Ne pas reconstruire pendant une saisie (clé TMDB).
+    // Ne pas reconstruire pendant une saisie.
     if (section.contains(document.activeElement) && document.activeElement.matches('input')) return;
     render();
   }

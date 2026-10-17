@@ -1,14 +1,13 @@
 /* Configuration : catégories, sous-catégories par défaut, libellés, palettes.
    APP_VERSION doit suivre CACHE_VERSION de sw.js (a-tester-vX.Y.Z). */
 
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '2.0.0';
 export const APP_ID = 'a-tester';
 export const SCHEMA_VERSION = 1;
 
 export const API_TIMEOUT = 8000;        // délai maximal d'un appel externe
 export const SEARCH_DEBOUNCE = 350;     // suggestions de l'ajout rapide
 export const TEXT_DEBOUNCE = 200;       // recherche texte des listes
-export const BACKUP_REMINDER_DAYS = 14;
 export const CLUSTER_THRESHOLD = 30;    // au-delà, les épingles se regroupent
 
 export const CATEGORY_KEYS = ['place', 'screen', 'podcast'];

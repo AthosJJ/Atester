@@ -1,16 +1,26 @@
 /* À tester — service worker.
-   Coquille pré-cachée et versionnée ; carte (OpenFreeMap, repli OpenStreetMap)
-   et affiches en cache limité ; appels API (Photon, TMDB, iTunes) toujours sur
-   le réseau.
+   Ne garde que des fichiers de l'app : la coquille et le SDK Firebase
+   (versionnés, pré-cachés), les tuiles et les styles de la carte
+   (OpenFreeMap, repli OpenStreetMap) et les pochettes de podcasts, en cache
+   limité. Jamais les requêtes Firebase (comptes, base de données) ni TMDB
+   (API et affiches), ni les autres API (Photon, iTunes) : toujours le réseau.
    Publier une version = incrémenter CACHE_VERSION (et APP_VERSION dans js/config.js).
    Vérifier la liste : node tools/check-sw.mjs */
-const CACHE_VERSION = 'a-tester-v1.4.0';
+const CACHE_VERSION = 'a-tester-v2.0.0';
 const TILE_CACHE = 'a-tester-tiles-ofm'; // 1.2 : tuiles OpenFreeMap et OSM (l'ancien cache CARTO est purgé)
 const MAP_CACHE = 'a-tester-map';        // styles, polices et icônes de la carte
 const MAP_HOST = 'tiles.openfreemap.org';
-const IMG_CACHE = 'a-tester-images';
+const IMG_CACHE = 'a-tester-images';     // 2.0 : pochettes de podcasts seulement (plus d'affiches TMDB)
 const MAX_TILES = 500;
 const MAX_IMAGES = 300;
+
+/* SDK Firebase, CDN officiel, même version que js/services/firebase.js :
+   gardé comme un fichier de l'app pour que l'app s'ouvre hors ligne. */
+const SDK = [
+  'https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js',
+  'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js'
+];
 
 const SHELL = [
   './',
@@ -22,17 +32,20 @@ const SHELL = [
   './js/config.js',
   './js/router.js',
   './js/utils.js',
-  './js/store/db.js',
+  './js/store/cloud.js',
   './js/store/events.js',
   './js/store/filters.js',
   './js/store/persons.js',
   './js/store/recommendations.js',
   './js/store/settings.js',
+  './js/services/account.js',
   './js/services/backup.js',
   './js/services/demo.js',
+  './js/services/firebase.js',
   './js/services/geo.js',
   './js/services/http.js',
   './js/services/itunes.js',
+  './js/services/legacy.js',
   './js/services/map.js',
   './js/services/photo.js',
   './js/services/photon.js',
@@ -42,6 +55,7 @@ const SHELL = [
   './js/views/content-tab.js',
   './js/views/empty.js',
   './js/views/hints.js',
+  './js/views/login.js',
   './js/views/person-detail.js',
   './js/views/persons.js',
   './js/views/places.js',
@@ -62,7 +76,6 @@ const SHELL = [
   './js/components/swipe.js',
   './js/components/tabbar.js',
   './js/components/toast.js',
-  './vendor/dexie/dexie.min.mjs',
   './vendor/leaflet/leaflet.js',
   './vendor/leaflet/leaflet.css',
   './vendor/leaflet/images/layers.png',
@@ -87,7 +100,7 @@ const SHELL = [
 self.addEventListener('install', (event) => {
   // cache:'reload' contourne le cache HTTP : jamais d'ancien fichier dans le nouveau cache.
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(SHELL.map((url) => new Request(url, { cache: 'reload' }))))
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll([...SHELL, ...SDK].map((url) => new Request(url, { cache: 'reload' }))))
   );
   // Pas de skipWaiting ici : l'app affiche « Nouvelle version disponible — Recharger ».
 });
@@ -102,12 +115,21 @@ self.addEventListener('activate', (event) => {
       .then((keys) => Promise.all(keys
         .filter((k) => k.startsWith('a-tester-') && ![CACHE_VERSION, TILE_CACHE, MAP_CACHE, IMG_CACHE].includes(k))
         .map((k) => caches.delete(k))))
+      .then(purgeTmdb)
       .then(() => self.clients.claim())
   );
 });
 
+/* 2.0 : les affiches TMDB gardées par les versions précédentes sont retirées. */
+async function purgeTmdb() {
+  const cache = await caches.open(IMG_CACHE);
+  const keys = await cache.keys();
+  await Promise.all(keys.filter((k) => new URL(k.url).hostname === 'image.tmdb.org').map((k) => cache.delete(k)));
+}
+
 const isOsmTile = (host) => host === 'tile.openstreetmap.org';
-const isImage = (host) => host === 'image.tmdb.org' || host.endsWith('.mzstatic.com');
+const isArtwork = (host) => host.endsWith('.mzstatic.com');
+const isSdk = (url) => url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/firebasejs/');
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
@@ -122,11 +144,20 @@ self.addEventListener('fetch', (event) => {
     else event.respondWith(cacheFirst(req, TILE_CACHE, MAX_TILES));
   } else if (isOsmTile(url.hostname)) {
     event.respondWith(cacheFirst(req, TILE_CACHE, MAX_TILES));
-  } else if (isImage(url.hostname)) {
+  } else if (isArtwork(url.hostname)) {
     event.respondWith(cacheFirst(req, IMG_CACHE, MAX_IMAGES));
+  } else if (isSdk(url)) {
+    event.respondWith(fromSdk(req));
   }
-  // Tout le reste (API Photon, TMDB, iTunes) : réseau uniquement, jamais en cache.
+  // Tout le reste (Firebase, TMDB et ses affiches, Photon, iTunes) : réseau
+  // uniquement, jamais en cache.
 });
+
+/* SDK Firebase : la copie pré-cachée, sinon le réseau. */
+async function fromSdk(req) {
+  const hit = await caches.match(req.url, { cacheName: CACHE_VERSION });
+  return hit || fetch(req);
+}
 
 async function fromShell(req) {
   if (req.mode === 'navigate') {

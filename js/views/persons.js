@@ -4,7 +4,6 @@ import { icon } from '../components/icons.js';
 import { avatar } from '../components/person-avatar.js';
 import { emptyState } from './empty.js';
 import { allPersons, personStats } from '../store/persons.js';
-import { backupDue } from '../services/backup.js';
 import { TEXT_DEBOUNCE } from '../config.js';
 import { esc, norm, debounce, fmtNumber } from '../utils.js';
 import { go } from '../router.js';
@@ -34,7 +33,6 @@ function row(p, s, i) {
 }
 
 function render() {
-  head.querySelector('.dot').hidden = !backupDue();
   const k = norm(q);
   const people = allPersons()
     .map((p) => ({ p, s: personStats(p.id) }))
@@ -66,7 +64,7 @@ export default {
             <h1 class="large-title">Personnes</h1>
             <div class="head-actions">
               <button type="button" class="rbtn" data-act="psearch" aria-label="Rechercher une personne">${icon('search')}</button>
-              <button type="button" class="rbtn" data-act="settings" aria-label="Réglages">${icon('settings')}<span class="dot" hidden></span></button>
+              <button type="button" class="rbtn" data-act="settings" aria-label="Réglages">${icon('settings')}</button>
             </div>
           </div>
           <div class="search-row">

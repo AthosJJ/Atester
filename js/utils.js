@@ -180,6 +180,18 @@ export const colorFromName = (name) => AVATAR_COLORS[hashString(name) % AVATAR_C
 
 /* ——— Divers ——— */
 
+/* Égalité de contenu (objets, tableaux, valeurs), sans tenir compte de
+   l'ordre des clés : Firestore renvoie les champs triés. */
+export function sameData(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null || typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) return a.length === b.length && a.every((x, i) => sameData(x, b[i]));
+  const ka = Object.keys(a).filter((k) => a[k] !== undefined);
+  const kb = Object.keys(b).filter((k) => b[k] !== undefined);
+  return ka.length === kb.length && ka.every((k) => sameData(a[k], b[k]));
+}
+
 export function debounce(fn, ms) {
   let t = null;
   const d = (...args) => { clearTimeout(t); t = setTimeout(() => { t = null; fn(...args); }, ms); };

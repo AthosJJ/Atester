@@ -1,6 +1,6 @@
 /* Jeu d'exemples (4 personnes, 15 recommandations), chargeable et retirable
    en un geste sans toucher aux vraies données : les identifiants créés sont
-   notés dans meta.demo. */
+   notés dans le champ demo du document du compte. */
 import { getMeta, setMeta } from '../store/settings.js';
 import { allRecos, normalizeReco, putRecos, deleteRecos } from '../store/recommendations.js';
 import { allPersons, findByName, me, putPersons, deletePersons, ensureMe } from '../store/persons.js';

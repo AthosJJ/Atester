@@ -19,7 +19,7 @@ import {
 import { subcats, subcat, getPref, setPref } from '../store/settings.js';
 import { passesFilters } from '../store/filters.js';
 import { searchPlaces, reverseGeocode, guessPlaceSubcat } from '../services/photon.js';
-import { searchTitles, fetchDetails, hasUsableKey, posterUrl } from '../services/tmdb.js';
+import { searchTitles, fetchDetails, hasUsableKey, ensureKey, keyStatus, unavailableMessage, posterUrl } from '../services/tmdb.js';
 import { searchShows, searchEpisodes } from '../services/itunes.js';
 import { isAbort, errorMessage } from '../services/http.js';
 import { getPosition, lastPosition, geoErrorMessage } from '../services/geo.js';
@@ -28,7 +28,7 @@ import { CATEGORIES, CATEGORY_KEYS, TAB_OF, SEARCH_DEBOUNCE, DEFAULT_MAP_VIEW, M
 import { esc, inkOn, debounce, localDateISO, safeUrl, colorFromName, lsGet, lsSet, haptic, reducedMotion } from '../utils.js';
 
 /* Branchés par app.js : navigation après l'enregistrement. */
-export const addHooks = { saved: null, openSettings: null };
+export const addHooks = { saved: null };
 
 let sheet = null;
 let f = null;          // état du formulaire
@@ -211,7 +211,7 @@ function renderNet() {
   const el = $b('[data-r="net"]');
   if (!el) return;
   if (!navigator.onLine) el.textContent = 'hors ligne : saisie libre';
-  else if (f.category === 'screen' && !hasUsableKey()) el.textContent = 'sans clé TMDB : saisie libre';
+  else if (f.category === 'screen' && keyStatus() !== null && !hasUsableKey()) el.textContent = 'recherche indisponible : saisie libre';
   else el.textContent = '';
 }
 
@@ -404,7 +404,7 @@ function renderSugg(items, { loading = false, error = null, noKey = false } = {}
   let html = '';
   if (loading) html += '<div class="sug info"><span class="sug-main"><span class="sk" style="width:70%;margin-bottom:6px;display:block"></span><span class="sk" style="width:45%;display:block"></span></span></div>';
   html += items.map(suggestionRow).join('');
-  if (noKey) html += `<button type="button" class="sug info link" data-act="tmdb-settings">${icon('key-round', { size: 18 })}Ajouter une clé TMDB pour les affiches</button>`;
+  if (noKey) html += `<div class="sug info">${icon('info', { size: 18 })}${esc(unavailableMessage())}</div>`;
   if (error) html += `<div class="sug info">${icon(error.kind === 'offline' ? 'wifi-off' : 'cloud-off', { size: 18 })}${esc(errorMessage(error))}</div>`;
   if (!loading && !error && !noKey && !items.length) html += `<div class="sug info">${icon('search', { size: 18 })}Aucune suggestion</div>`;
   html += freeRow();
@@ -416,7 +416,7 @@ async function doSearch() {
   searchCtrl?.abort();
   if (q.length < 3) { showSugg(''); $b('[data-r="spin"]').hidden = true; return; }
   if (!navigator.onLine) { renderSugg([], { error: { kind: 'offline' } }); return; }
-  if (f.category === 'screen' && !hasUsableKey()) { renderSugg([], { noKey: true }); return; }
+  if (f.category === 'screen' && !hasUsableKey() && !(await ensureKey())) { renderSugg([], { noKey: true }); return; }
   const token = ++searchSeq;
   searchCtrl = new AbortController();
   const { signal } = searchCtrl;
@@ -848,7 +848,6 @@ function bindEvents() {
         build({});
         break;
       }
-      case 'tmdb-settings': addHooks.openSettings?.(); break;
       case 'delete': {
         const id = f.id;
         f.saved = true;

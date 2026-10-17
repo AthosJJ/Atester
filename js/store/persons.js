@@ -1,18 +1,50 @@
-/* Personnes : cache mémoire + IndexedDB. Le prénom est unique sans tenir
-   compte de la casse ; les statistiques sont toujours calculées, jamais stockées. */
-import { db } from './db.js';
+/* Personnes : cache mémoire alimenté par Firestore (store/cloud.js). Le
+   prénom est unique sans tenir compte de la casse ; les statistiques sont
+   toujours calculées, jamais stockées. « Moi » a un identifiant fixe, pour
+   que deux appareils ne le créent pas chacun de leur côté. */
 import { emit } from './events.js';
-import { allRecos, cacheRecos } from './recommendations.js';
-import { uid, nowISO, norm, colorFromName, levenshtein } from '../utils.js';
+import { register, put, patch, commit, DELETE, fromServer } from './cloud.js';
+import { allRecos, cacheRecos, recoOps } from './recommendations.js';
+import { uid, nowISO, norm, colorFromName, levenshtein, sameData } from '../utils.js';
+
+export const ME_ID = 'me';
+const ME_COLOR = '#C2553B';
+const HEX = /^#[0-9a-f]{6}$/i;
 
 let list = [];
 const byId = new Map();
 
-export async function loadPersons() {
-  list = await db.persons.toArray();
-  byId.clear();
-  for (const p of list) byId.set(p.id, p);
+/* Forme garantie d'une personne lue dans Firestore. */
+function clean(data, id) {
+  const name = String(data.name || '').trim() || 'Sans nom';
+  const isMe = Boolean(data.isMe);
+  const p = {
+    id,
+    name,
+    color: HEX.test(data.color || '') ? data.color : isMe ? ME_COLOR : colorFromName(name),
+    isMe,
+    createdAt: typeof data.createdAt === 'string' ? data.createdAt : '1970-01-01T00:00:00.000Z'
+  };
+  if (typeof data.photo === 'string' && data.photo.startsWith('data:image/')) p.photo = data.photo;
+  return p;
 }
+
+register('persons', (snap, first) => {
+  if (first) { list = []; byId.clear(); }
+  const ids = [];
+  for (const ch of snap.docChanges()) {
+    const id = ch.doc.id;
+    if (ch.type === 'removed') {
+      if (byId.has(id)) { drop(id); ids.push(id); }
+      continue;
+    }
+    const p = clean(ch.doc.data(), id);
+    if (!sameData(byId.get(id), p)) { keep(p); ids.push(id); }
+  }
+  if (ids.length) emit('change', { type: 'person', ids });
+  // Compte tout neuf (confirmé par le serveur) : on crée « Moi ».
+  if (fromServer('persons') && !me()) ensureMe();
+});
 
 export const allPersons = () => list;
 export const getPerson = (id) => byId.get(id) || null;
@@ -35,17 +67,24 @@ function drop(id) {
 }
 
 export async function ensureMe() {
-  if (!me()) await createPerson('Moi', { isMe: true, color: '#C2553B', silent: true });
+  if (me()) return;
+  const p = { id: ME_ID, name: 'Moi', color: ME_COLOR, isMe: true, createdAt: nowISO() };
+  keep(p);
+  if (fromServer('persons')) put('persons', ME_ID, p); // le serveur confirme : pas encore de « Moi »
+  // Sans confirmation (hors ligne) : fusion, pour garder la photo ou la
+  // couleur d'un « Moi » déjà créé sur un autre appareil.
+  else commit([{ type: 'set', col: 'persons', id: ME_ID, data: { id: ME_ID, name: 'Moi', isMe: true }, merge: true }]);
+  emit('change', { type: 'person', ids: [ME_ID] });
 }
 
-export async function createPerson(name, { isMe = false, color, silent = false } = {}) {
-  const clean = cleanName(name);
-  if (!clean) throw new Error('Le prénom est vide.');
-  const existing = findByName(clean);
+export async function createPerson(name, { color, silent = false } = {}) {
+  const cleaned = cleanName(name);
+  if (!cleaned) throw new Error('Le prénom est vide.');
+  const existing = findByName(cleaned);
   if (existing) return existing;
-  const p = { id: uid(), name: clean, color: color || colorFromName(clean), isMe, createdAt: nowISO() };
-  await db.persons.put(p);
+  const p = { id: uid(), name: cleaned, color: color || colorFromName(cleaned), isMe: false, createdAt: nowISO() };
   keep(p);
+  put('persons', p.id, p);
   if (!silent) emit('change', { type: 'person', ids: [p.id] });
   return p;
 }
@@ -73,36 +112,37 @@ export function searchPersons(q, { exclude = [] } = {}) {
 }
 
 export async function renamePerson(id, name) {
-  const clean = cleanName(name);
-  if (!clean) throw new Error('Le prénom est vide.');
-  const other = findByName(clean);
+  const cleaned = cleanName(name);
+  if (!cleaned) throw new Error('Le prénom est vide.');
+  const other = findByName(cleaned);
   if (other && other.id !== id) {
     const err = new Error(`« ${other.name} » existe déjà.`);
     err.conflict = other;
     throw err;
   }
-  const p = { ...byId.get(id), name: clean };
-  await db.persons.put(p);
+  const p = { ...byId.get(id), name: cleaned };
   keep(p);
+  patch('persons', id, { name: cleaned });
   emit('change', { type: 'person', ids: [id] });
   return p;
 }
 
 export async function setPersonColor(id, color) {
   const p = { ...byId.get(id), color };
-  await db.persons.put(p);
   keep(p);
+  patch('persons', id, { color });
   emit('change', { type: 'person', ids: [id] });
 }
 
-/* Photo : data URL JPEG carrée (services/photo.js), ou null pour la retirer. */
+/* Photo : data URL JPEG carrée de 200 px, 30 Ko au plus (services/photo.js),
+   rangée dans la fiche de la personne ; null pour la retirer. */
 export async function setPersonPhoto(id, photo) {
   if (!byId.has(id)) return;
   const p = { ...byId.get(id) };
   if (photo) p.photo = photo;
   else delete p.photo;
-  await db.persons.put(p);
   keep(p);
+  patch('persons', id, { photo: photo || DELETE });
   emit('change', { type: 'person', ids: [id] });
 }
 
@@ -115,12 +155,9 @@ export async function mergePersons(sourceId, targetId) {
   const affected = allRecos()
     .filter((r) => r.personIds.includes(sourceId))
     .map((r) => ({ ...r, personIds: [...new Set(r.personIds.map((id) => (id === sourceId ? targetId : id)))], updatedAt: now }));
-  await db.transaction('rw', db.recommendations, db.persons, async () => {
-    if (affected.length) await db.recommendations.bulkPut(affected);
-    await db.persons.delete(sourceId);
-  });
   cacheRecos(affected);
   drop(sourceId);
+  commit([...recoOps(affected), { type: 'delete', col: 'persons', id: sourceId }]);
   emit('change', { type: 'merge', ids: [targetId] });
   return affected.length;
 }
@@ -134,40 +171,40 @@ export async function deletePerson(id) {
   const before = allRecos().filter((r) => r.personIds.includes(id));
   const now = nowISO();
   const after = before.map((r) => ({ ...r, personIds: r.personIds.filter((x) => x !== id), updatedAt: now }));
-  await db.transaction('rw', db.recommendations, db.persons, async () => {
-    if (after.length) await db.recommendations.bulkPut(after);
-    await db.persons.delete(id);
-  });
   cacheRecos(after);
   drop(id);
+  commit([...recoOps(after), { type: 'delete', col: 'persons', id }]);
   emit('change', { type: 'person-delete', ids: [id] });
   return { person: p, recos: before };
 }
 
 export async function restorePerson(snapshot) {
-  await db.transaction('rw', db.recommendations, db.persons, async () => {
-    await db.persons.put(snapshot.person);
-    if (snapshot.recos.length) await db.recommendations.bulkPut(snapshot.recos);
-  });
   keep(snapshot.person);
   cacheRecos(snapshot.recos);
+  commit([...personOps([snapshot.person]), ...recoOps(snapshot.recos)]);
   emit('change', { type: 'person', ids: [snapshot.person.id] });
 }
 
-/* Écritures en bloc (import, exemples). */
+/* Écritures en bloc (exemples). */
 export async function putPersons(persons, { silent = false } = {}) {
   if (!persons.length) return;
-  await db.persons.bulkPut(persons);
   persons.forEach(keep);
+  commit(personOps(persons));
   if (!silent) emit('change', { type: 'person', ids: persons.map((p) => p.id) });
 }
 
 export async function deletePersons(ids, { silent = false } = {}) {
   if (!ids.length) return;
-  await db.persons.bulkDelete(ids);
   ids.forEach(drop);
+  commit(ids.map((id) => ({ type: 'delete', col: 'persons', id })));
   if (!silent) emit('change', { type: 'person-delete', ids });
 }
+
+export const personOps = (persons) => persons.map((p) => ({ type: 'set', col: 'persons', id: p.id, data: p }));
+
+/* Met à jour le cache après un lot écrit ailleurs (import). */
+export function cachePersons(persons) { persons.forEach(keep); }
+export function uncachePersons(ids) { ids.forEach(drop); }
 
 export function personStats(id) {
   const byCat = { place: 0, screen: 0, podcast: 0 };

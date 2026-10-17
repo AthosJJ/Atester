@@ -1,44 +1,73 @@
-/* Films et séries avec TMDB (API v3). La clé est saisie par l'utilisateur et
-   ne quitte jamais l'appareil ; elle n'est pas incluse dans les exports.
-   Accepte une « clé d'API » v3 ou un « jeton d'accès en lecture » v4. */
+/* Films et séries avec TMDB (API v3). La clé n'est ni dans le code ni dans
+   l'app : une fois la personne connectée, elle est lue dans le document
+   Firestore config/tmdb (champ apiKey, lisible par tout compte connecté,
+   jamais modifiable depuis l'app) et gardée en mémoire. Accepte une « clé
+   d'API » v3 ou un « jeton d'accès en lecture » v4. */
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
+import { db } from './firebase.js';
 import { fetchJSON, ApiError } from './http.js';
-import { getMeta, setMeta } from '../store/settings.js';
+import { emit } from '../store/events.js';
 
 const API = 'https://api.themoviedb.org/3';
 export const IMG = 'https://image.tmdb.org/t/p/';
 
-export const getKey = () => getMeta('tmdbKey', '') || '';
-export const keyStatus = () => getMeta('tmdbKeyStatus', null); // 'ok' | 'invalid' | null
-export const hasUsableKey = () => Boolean(getKey()) && keyStatus() !== 'invalid';
+let key = '';
+let status = null; // 'ok' | 'missing' | 'invalid' | null (pas encore lue)
+let loading = null;
 
-export async function saveKey(key) {
-  await setMeta('tmdbKey', key.trim() || null);
-  await setMeta('tmdbKeyStatus', null);
+function setStatus(next) {
+  if (status === next) return;
+  status = next;
+  emit('meta', 'tmdb');
 }
 
-const isBearer = (key) => key.startsWith('eyJ') && key.length > 60;
+/* Lecture de config/tmdb ; sans réseau, elle sera retentée au retour en ligne. */
+export function loadKey() {
+  if (loading) return loading;
+  loading = getDoc(doc(db, 'config', 'tmdb'))
+    .then((snap) => {
+      key = snap.exists() ? String(snap.data().apiKey || '').trim() : '';
+      setStatus(key ? 'ok' : 'missing');
+    })
+    .catch((err) => {
+      console.warn('[tmdb] clé non lue', err?.code || err);
+    })
+    .finally(() => { loading = null; });
+  return loading;
+}
 
-async function call(path, params = {}, { key = getKey(), signal } = {}) {
+window.addEventListener('online', () => { if (!key && status !== null) loadKey(); });
+
+export const keyStatus = () => status;
+export const hasUsableKey = () => Boolean(key) && status === 'ok';
+
+/* Juste après la connexion, la clé peut être encore en route. */
+export async function ensureKey() {
+  if (status === null) await loadKey();
+  return hasUsableKey();
+}
+
+/* Message à afficher quand la recherche de films est indisponible. */
+export function unavailableMessage() {
+  if (status === 'invalid') return 'TMDB refuse la clé configurée : la recherche de films est désactivée. Tu peux ajouter le titre à la main.';
+  if (status === 'missing') return 'La recherche de films n’est pas encore disponible. Tu peux ajouter le titre à la main.';
+  return 'La recherche de films est indisponible pour l’instant. Tu peux ajouter le titre à la main.';
+}
+
+const isBearer = (k) => k.startsWith('eyJ') && k.length > 60;
+
+async function call(path, params = {}, { signal } = {}) {
   if (!key) throw new ApiError('auth');
+  const used = key;
   const qs = new URLSearchParams(params);
   const headers = { Accept: 'application/json' };
-  if (isBearer(key)) headers.Authorization = `Bearer ${key}`;
-  else qs.set('api_key', key);
+  if (isBearer(used)) headers.Authorization = `Bearer ${used}`;
+  else qs.set('api_key', used);
   try {
     return await fetchJSON(`${API}${path}?${qs}`, { signal, headers });
   } catch (err) {
-    if (err.kind === 'auth' && key === getKey()) await setMeta('tmdbKeyStatus', 'invalid');
+    if (err.kind === 'auth' && used === key) setStatus('invalid');
     throw err;
-  }
-}
-
-/* « Tester la clé » : true si TMDB l'accepte. */
-export async function testKey(key) {
-  try {
-    await call('/authentication', {}, { key });
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, reason: err.kind === 'auth' ? 'invalid' : err.kind };
   }
 }
 

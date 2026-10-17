@@ -1,16 +1,21 @@
-/* Export et import JSON : la seule vraie sauvegarde (les données vivent sur l'iPhone).
-   Format décrit dans SPEC.md, section 2 « Format d'export JSON ». */
+/* Sauvegarde et import. Les données vivent dans le compte (Firestore) ;
+   l'export JSON reste une sauvegarde facultative. L'import, depuis un fichier
+   JSON ou l'ancien stockage de l'appareil, fusionne sans créer de doublons :
+   relancé, il n'ajoute rien. Il est ensuite vérifié en relisant le compte
+   sur le serveur. Format décrit dans SPEC.md, section 2 « Format d'export JSON ». */
 import { APP_ID, SCHEMA_VERSION, CATEGORY_KEYS } from '../config.js';
-import { db } from '../store/db.js';
 import { emit } from '../store/events.js';
-import { allRecos, normalizeReco, findDuplicate, loadRecos } from '../store/recommendations.js';
-import { allPersons, getPerson, findByName, me, loadPersons, ensureMe } from '../store/persons.js';
+import { commit, serverDocs } from '../store/cloud.js';
+import { allRecos, normalizeReco, findDuplicate, cacheRecos, recoOps, deleteRecos } from '../store/recommendations.js';
+import { allPersons, getPerson, findByName, me, ensureMe, cachePersons, personOps, deletePersons } from '../store/persons.js';
 import { subcats, getMeta, setMeta, mergeSubcats, replaceSubcats } from '../store/settings.js';
-import { isPhoto } from './photo.js';
-import { localDateISO, nowISO, uid, colorFromName } from '../utils.js';
+import { isPhoto, shrinkPhoto } from './photo.js';
+import { readLegacy } from './legacy.js';
+import { localDateISO, nowISO, colorFromName, lsGet, lsSet, wait } from '../utils.js';
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const validDate = (s) => (typeof s === 'string' && !isNaN(new Date(s)) ? s : null);
+const SEND_TIMEOUT = 60000;
 
 export function buildExport() {
   return {
@@ -26,6 +31,7 @@ export function buildExport() {
 }
 
 export const exportFileName = () => `${APP_ID}-sauvegarde-${localDateISO()}.json`;
+export const lastBackupAt = () => lsGet('lastBackupAt');
 
 /* Partage natif sur iPhone (« Enregistrer dans Fichiers », iCloud Drive),
    téléchargement classique ailleurs. À appeler directement depuis un tap. */
@@ -53,22 +59,15 @@ export async function exportBackup() {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
-  await setMeta('lastBackupAt', nowISO());
+  lsSet('lastBackupAt', nowISO());
   return { ok: true, method, recos: data.recommendations.length, persons: data.persons.filter((p) => !p.isMe).length };
 }
 
-/* ——— Rappel de sauvegarde : plus de 14 jours et des ajouts depuis ——— */
-export function backupDue(days = 14) {
-  const recos = allRecos();
-  if (!recos.length) return false;
-  const since = getMeta('lastBackupAt') || getMeta('firstLaunchAt') || recos.reduce((m, r) => (r.createdAt < m ? r.createdAt : m), nowISO());
-  const age = (Date.now() - new Date(since).getTime()) / 86400000;
-  if (age < days) return false;
-  const demo = new Set(getMeta('demo', {})?.recos || []);
-  return recos.some((r) => !demo.has(r.id) && (r.createdAt > since || r.updatedAt > since));
-}
-
 /* ——— Import ——— */
+
+const validPerson = (p) => p && typeof p.id === 'string' && p.id && typeof p.name === 'string' && p.name.trim();
+const validReco = (r) => r && typeof r.id === 'string' && r.id && CATEGORY_KEYS.includes(r.category)
+  && typeof r.title === 'string' && r.title.trim() && Array.isArray(r.personIds);
 
 /* Vérifie le fichier sans rien modifier. Renvoie { data } ou { error }. */
 export function parseBackup(text) {
@@ -81,9 +80,8 @@ export function parseBackup(text) {
   if (!Array.isArray(data.persons) || !Array.isArray(data.recommendations)) {
     return { error: 'Structure incorrecte : la liste des personnes ou des recommandations manque.' };
   }
-  const badP = data.persons.filter((p) => !p || typeof p.id !== 'string' || !p.id || typeof p.name !== 'string' || !p.name.trim()).length;
-  const badR = data.recommendations.filter((r) => !r || typeof r.id !== 'string' || !r.id
-    || !CATEGORY_KEYS.includes(r.category) || typeof r.title !== 'string' || !r.title.trim() || !Array.isArray(r.personIds)).length;
+  const badP = data.persons.filter((p) => !validPerson(p)).length;
+  const badR = data.recommendations.filter((r) => !validReco(r)).length;
   if (badP || badR) {
     return { error: `Structure incorrecte : ${badR} recommandation(s) et ${badP} personne(s) illisibles. Rien n’a été modifié.` };
   }
@@ -96,63 +94,23 @@ function migrate(data) {
 }
 
 /* La photo (champ optionnel ajouté en 1.1) n'est gardée que si c'est bien une
-   petite image JPEG, PNG ou WebP en data URL. */
+   image JPEG, PNG ou WebP en data URL ; elle est convertie avant l'envoi. */
 function cleanPerson(p) {
   const name = p.name.trim().replace(/\s+/g, ' ').slice(0, 40);
   return {
     id: p.id,
     name,
     color: HEX.test(p.color || '') ? p.color : colorFromName(name),
-    isMe: Boolean(p.isMe),
+    isMe: false,
     createdAt: validDate(p.createdAt) || nowISO(),
     ...(isPhoto(p.photo) ? { photo: p.photo } : {})
   };
 }
 
-/* Remplace toutes les données par celles du fichier. */
-export async function importReplace(data) {
-  const persons = [];
-  const idMap = new Map();
-  const byName = new Map();
-  for (const raw of data.persons) {
-    const p = cleanPerson(raw);
-    const key = p.name.toLowerCase();
-    if (byName.has(key)) { idMap.set(raw.id, byName.get(key).id); continue; }
-    persons.push(p);
-    byName.set(key, p);
-    idMap.set(raw.id, p.id);
-  }
-  let mine = persons.filter((p) => p.isMe);
-  mine.slice(1).forEach((p) => { p.isMe = false; });
-  if (!mine.length) {
-    const named = byName.get('moi');
-    if (named) named.isMe = true;
-    else persons.push({ id: uid(), name: 'Moi', color: '#C2553B', isMe: true, createdAt: nowISO() });
-  }
-  const myId = persons.find((p) => p.isMe).id;
-  const recos = data.recommendations.map((r) => {
-    const ids = [...new Set(r.personIds.map((id) => idMap.get(id)).filter(Boolean))];
-    return normalizeReco({ ...r, personIds: ids.length ? ids : [myId] });
-  });
-  await db.transaction('rw', db.recommendations, db.persons, async () => {
-    await db.recommendations.clear();
-    await db.persons.clear();
-    await db.persons.bulkPut(persons);
-    await db.recommendations.bulkPut(recos);
-  });
-  await replaceSubcats(data.subcategories);
-  await setMeta('demo', null, true);
-  await loadPersons();
-  await loadRecos();
-  emit('change', { type: 'import' });
-  return { added: recos.length, updated: 0, persons: persons.filter((p) => !p.isMe).length };
-}
-
-/* Ajoute les éléments absents ; pour un même id, garde le plus récent (updatedAt).
-   Les personnes de même nom sont rapprochées ; une même œuvre ou un même lieu
-   saisi sur un autre appareil est fusionné (personnes réunies), sans doublon. */
-export async function importMerge(data) {
-  await ensureMe();
+/* Fusion, sans rien écrire : pour un même id, la version la plus récente
+   (updatedAt) gagne ; les personnes de même nom sont rapprochées ; une même
+   œuvre ou un même lieu déjà présent est réuni (personnes cumulées). */
+function plan(data) {
   const myId = me().id;
   const idMap = new Map();
   const newPersons = [];
@@ -175,6 +133,7 @@ export async function importMerge(data) {
   const pool = [...allRecos()];
   const index = new Map(pool.map((r, i) => [r.id, i]));
   const toPut = new Map();
+  const recoIdMap = new Map(); // id du fichier → id dans le compte
   let added = 0, updated = 0;
   const union = (a, b) => [...new Set([...a, ...b])];
 
@@ -182,6 +141,7 @@ export async function importMerge(data) {
     const ids = [...new Set(raw.personIds.map((id) => idMap.get(id)).filter(Boolean))];
     const inc = normalizeReco({ ...raw, personIds: ids.length ? ids : [myId] });
     if (index.has(inc.id)) {
+      recoIdMap.set(raw.id, inc.id);
       const cur = pool[index.get(inc.id)];
       if (inc.updatedAt > cur.updatedAt) {
         pool[index.get(inc.id)] = inc;
@@ -192,6 +152,7 @@ export async function importMerge(data) {
     }
     const dup = findDuplicate(inc, { pool });
     if (dup) {
+      recoIdMap.set(raw.id, dup.id);
       const base = inc.updatedAt > dup.updatedAt ? { ...inc, id: dup.id, createdAt: dup.createdAt } : { ...dup };
       base.personIds = union(dup.personIds, inc.personIds);
       if (inc.updatedAt > dup.updatedAt || base.personIds.length !== dup.personIds.length) {
@@ -201,35 +162,92 @@ export async function importMerge(data) {
       }
       continue;
     }
+    recoIdMap.set(raw.id, inc.id);
     index.set(inc.id, pool.length);
     pool.push(inc);
     toPut.set(inc.id, inc);
     added++;
   }
-
-  await db.transaction('rw', db.recommendations, db.persons, async () => {
-    if (newPersons.length || withPhoto.size) await db.persons.bulkPut([...newPersons, ...withPhoto.values()]);
-    if (toPut.size) await db.recommendations.bulkPut([...toPut.values()]);
-  });
-  await mergeSubcats(data.subcategories);
-  await loadPersons();
-  await loadRecos();
-  emit('change', { type: 'import' });
-  return { added, updated, persons: newPersons.length };
+  return { idMap, recoIdMap, newPersons, withPhoto, toPut, added, updated };
 }
 
-/* Zone dangereuse : efface recommandations et personnes. Les réglages de
-   l'appareil (thème, clé TMDB) sont conservés. */
-export async function wipeAll() {
-  await db.transaction('rw', db.recommendations, db.persons, async () => {
-    await db.recommendations.clear();
-    await db.persons.clear();
+/* Les photos passent au format du compte (200 px, 30 Ko au plus). */
+async function convertPhotos(persons) {
+  for (const p of persons) {
+    if (!p.photo) continue;
+    const small = await shrinkPhoto(p.photo);
+    if (small) p.photo = small;
+    else delete p.photo;
+  }
+}
+
+export class ImportError extends Error {
+  constructor(kind) {
+    super(kind);
+    this.kind = kind; // 'offline' | 'empty'
+  }
+}
+
+/* Fusionne les données dans le compte, attend que le serveur ait tout reçu,
+   puis relit le compte sur le serveur pour vérifier que chaque élément
+   importé y est bien. */
+export async function importMerge(data, { onStep } = {}) {
+  if (!navigator.onLine) throw new ImportError('offline');
+  await ensureMe();
+  const p = plan(data);
+  onStep?.('photos');
+  const persons = [...p.newPersons, ...p.withPhoto.values()];
+  await convertPhotos(persons);
+  const recos = [...p.toPut.values()];
+
+  cachePersons(persons);
+  cacheRecos(recos);
+  if (data.subcategories) await mergeSubcats(data.subcategories);
+  emit('change', { type: 'import' });
+
+  onStep?.('send');
+  const sent = commit([...personOps(persons), ...recoOps(recos)]);
+  const done = await Promise.race([sent.then(() => true), wait(SEND_TIMEOUT).then(() => false)]);
+  const res = { added: p.added, updated: p.updated, persons: p.newPersons.length, idMap: p.idMap, recoIdMap: p.recoIdMap };
+  if (!done) return { ...res, verified: false, pending: true };
+
+  onStep?.('verify');
+  const [srvRecos, srvPersons] = await Promise.all([serverDocs('recommendations'), serverDocs('persons')]);
+  const missing = [...new Set(p.recoIdMap.values())].filter((id) => !srvRecos.has(id)).length
+    + [...new Set(p.idMap.values())].filter((id) => !srvPersons.has(id)).length;
+  return { ...res, verified: missing === 0, missing };
+}
+
+/* Ancien stockage de l'appareil (versions 1.x) → compte. Les exemples
+   éventuels restent marqués comme tels (« Retirer les exemples »). */
+export async function importLocal(opts) {
+  const legacy = await readLegacy();
+  if (!legacy) throw new ImportError('empty');
+  const data = migrate({
+    app: APP_ID,
+    schemaVersion: SCHEMA_VERSION,
+    persons: legacy.persons.filter(validPerson),
+    recommendations: legacy.recommendations.filter(validReco),
+    subcategories: legacy.subcategories
   });
+  const res = await importMerge(data, opts);
+  if (legacy.demo && (legacy.demo.recos?.length || legacy.demo.persons?.length)) {
+    const cur = getMeta('demo', null) || { recos: [], persons: [] };
+    const recos = (legacy.demo.recos || []).map((id) => res.recoIdMap.get(id)).filter(Boolean);
+    const persons = (legacy.demo.persons || []).map((id) => res.idMap.get(id)).filter((id) => id && id !== me().id);
+    await setMeta('demo', { recos: [...new Set([...cur.recos, ...recos])], persons: [...new Set([...cur.persons, ...persons])] }, true);
+  }
+  if (res.verified) lsSet('legacy-imported', nowISO());
+  return res;
+}
+
+/* Zone dangereuse : efface les recommandations et les personnes du compte,
+   sur tous les appareils. « Moi » reste. */
+export async function wipeAll() {
+  await deleteRecos(allRecos().map((r) => r.id), { silent: true });
+  await deletePersons(allPersons().filter((p) => !p.isMe).map((p) => p.id), { silent: true });
   await replaceSubcats(null);
   await setMeta('demo', null, true);
-  await setMeta('filters', null, true);
-  await loadPersons();
-  await loadRecos();
   await ensureMe();
   emit('change', { type: 'wipe' });
 }

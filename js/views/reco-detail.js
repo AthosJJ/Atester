@@ -13,7 +13,7 @@ import { personsOf } from '../store/persons.js';
 import { subcat } from '../store/settings.js';
 import { loadLeaflet, attachBaseLayer, pinIcon, directionsUrl } from '../services/map.js';
 import { directionsButton } from '../components/directions.js';
-import { fetchDetails, hasUsableKey } from '../services/tmdb.js';
+import { fetchDetails, hasUsableKey, unavailableMessage } from '../services/tmdb.js';
 import { errorMessage } from '../services/http.js';
 import { openEdit } from './add.js';
 import { STATUS, CATEGORIES, MAP_MAX_ZOOM } from '../config.js';
@@ -199,7 +199,7 @@ function render() {
 }
 
 async function refreshPlatforms(r, btn) {
-  if (!hasUsableKey()) { toast('Ajoute une clé TMDB dans les réglages.', { icon: 'key-round' }); return; }
+  if (!hasUsableKey()) { toast(unavailableMessage(), { icon: 'info' }); return; }
   btn?.classList.add('busy');
   try {
     const d = await fetchDetails(r.details.tmdbType, r.details.tmdbId);
