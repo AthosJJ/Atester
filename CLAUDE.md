@@ -1,6 +1,6 @@
 # À tester — consignes pour Claude Code
 
-- Le cahier des charges complet est dans SPEC.md : le relire avant chaque étape. Les améliorations et écarts déjà décidés sont dans AMELIORATIONS.md.
+- Le cahier des charges complet est dans SPEC.md : le relire avant chaque étape. Les améliorations et écarts déjà décidés sont dans AMELIORATIONS.md. Les projets demandés mais pas encore commencés (plans, prérequis, points à trancher) sont dans PROJETS.md.
 - JavaScript vanilla en modules ES, sans étape de build ni framework.
 - Librairies externes copiées dans vendor/, jamais chargées depuis un CDN. Seule exception (demandée en 2.0) : le SDK Firebase, en modules ES depuis le CDN officiel www.gstatic.com, à une version figée dans js/services/firebase.js et pré-cachée par sw.js (liste SDK).
 - Chemins toujours relatifs (l'app est servie depuis un sous-dossier sur GitHub Pages).

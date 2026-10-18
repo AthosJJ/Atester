@@ -4,7 +4,6 @@
   "description": "Les recommandations qu’on te fait (lieux, films, séries, podcasts), avec la personne qui te les a conseillées.",
   "lang": "fr",
   "dir": "ltr",
-  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

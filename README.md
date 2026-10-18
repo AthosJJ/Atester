@@ -46,13 +46,17 @@ Projet Firebase `athos-apps`, forfait gratuit Spark. La configuration web est da
 2. Partager › **Sur l'écran d'accueil**.
 3. L'app s'ouvre en plein écran, on se connecte une fois, puis elle fonctionne hors ligne.
 
-Sur Android, ouvrir l'URL dans Chrome puis menu › **Ajouter à l'écran d'accueil** (ou **Installer l'application**).
+## Installation sur Android
+
+1. Ouvrir l'URL dans **Chrome**, menu ⋮ › **Ajouter à l'écran d'accueil** › **Installer** (ou directement **Installer l'application**). Pas « Créer un raccourci » : le raccourci ouvre l'app dans Chrome, avec sa barre d'adresse.
+2. Chrome installe l'app en quelques secondes. Elle apparaît dans la liste des applications ; selon le lanceur, il faut l'en faire glisser vers l'écran d'accueil.
+3. L'app installée partage la session de Chrome : pas besoin de se reconnecter.
 
 ## Structure
 
 ```
 index.html              coquille, écrans de lancement iOS
-manifest.webmanifest    manifeste (chemins relatifs)
+manifest.webmanifest    manifeste (chemins relatifs, sans « id » : chaque adresse a sa propre identité d'app)
 sw.js                   service worker : coquille et SDK Firebase versionnés ; carte (style, polices, 500 tuiles) et pochettes (300) en cache
 firestore.rules         règles de sécurité Firestore (à publier dans la console Firebase)
 css/tokens.css          couleurs et thèmes clair / sombre

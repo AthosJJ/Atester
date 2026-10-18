@@ -157,3 +157,9 @@ Chacun se connecte avec son e-mail et un mot de passe et retrouve ses propres do
 
 - **Appui long** : le menu d'une recommandation se refermait au lever du doigt quand on avait tenu plus d'une seconde et demie. Sur iPhone, le retour haptique simule un clic, qui consommait la protection prévue pour le clic du lever du doigt. Désormais, les vrais clics sont ignorés tant que le doigt reste posé et un court instant après ; une action touchée ensuite fonctionne tout de suite.
 - **Menus avec une coche** (« Trier par ») : le choix en cours est centré comme les autres, la coche reste à droite.
+
+## 16. Version 2.0.4 : installation sur Android
+
+- **« Installer » ne faisait rien dans Chrome sur Android.** Le manifeste déclarait `"id": "./"`. Or l'identifiant d'une app se résout par rapport à la racine du domaine, pas au dossier : la version publiée (`/Atester/`) et la bêta (`/atester-beta/`) avaient donc la même identité, `https://athosjj.github.io/`. Chrome reconnaît une app installée à cette identité et confondait les deux. Sans `id`, l'identité est l'adresse de départ : `/Atester/` et `/atester-beta/` sont désormais deux apps distinctes (vérifié avec le contrôle d'installabilité de Chrome).
+- Une app déjà installée sur Android sous l'ancienne identité ne suit pas : la désinstaller, puis réinstaller depuis Chrome. Sur iPhone, rien ne change pour une app déjà sur l'écran d'accueil.
+- Ne pas remettre d'`id` dans le manifeste (sinon chaque dépôt devrait avoir le sien) et ne plus changer `start_url`, qui sert maintenant d'identité.
